@@ -92,6 +92,7 @@ def load_open_flat_passes(events_path: Path, match_id: str) -> list[dict]:
         end_source = "event"
         next_relation = "same_event"
         next_tag = None
+        end_gap_s = 0.0
         if _distance(start, end) <= 1.0:
             nxt = _next_record(raw, index, record["time"])
             if nxt is None or nxt["location"] is None:
@@ -100,6 +101,7 @@ def load_open_flat_passes(events_path: Path, match_id: str) -> list[dict]:
             end_source = "next_event"
             next_relation = _next_relation(record, nxt)
             next_tag = nxt["event_tag"] or None
+            end_gap_s = abs((nxt["time"] - record["time"]).total_seconds())
         if end is None or _distance(start, end) <= 1.0:
             continue
         team_left = _team_left_at(team_left_by_time, record["time"])
@@ -121,6 +123,7 @@ def load_open_flat_passes(events_path: Path, match_id: str) -> list[dict]:
                 "end_source": end_source,
                 "next_event_relation": next_relation,
                 "next_event_tag": next_tag,
+                "end_gap_s": end_gap_s,
             }
         )
     return passes

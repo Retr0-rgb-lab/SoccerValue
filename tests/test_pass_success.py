@@ -8,6 +8,7 @@ import torch
 from soccervalue.align import alignment_report, choose_transform, convert, frame_cost, orient_samples
 from soccervalue.events import label_audit, load_open_flat_passes
 from soccervalue.features import geometry_matrix, spatial_matrix
+from soccervalue.trusted import end_is_on_event, is_trusted, kick_frame_is_close
 from soccervalue.matches import TEST_MATCHES, TRAIN_MATCHES, VAL_MATCHES, assert_split_disjoint
 from soccervalue.metrics import binary_scores
 from soccervalue.model import SoccerMapSuccess, destination_loss
@@ -71,6 +72,7 @@ class PassAndSplitTests(unittest.TestCase):
         self.assertEqual(by_id["same"]["success"], 0)
         self.assertEqual((by_id["same"]["end_x"], by_id["same"]["end_y"]), (28.0, 24.0))
         self.assertEqual(by_id["same"]["end_source"], "next_event")
+        self.assertAlmostEqual(by_id["same"]["end_gap_s"], 2.0)
         self.assertEqual(by_id["flat"]["end_source"], "event")
         self.assertEqual(by_id["same"]["team_left"], "home")
         audit = label_audit(passes)
@@ -168,6 +170,21 @@ class PassAndSplitTests(unittest.TestCase):
         geometry, _ = geometry_matrix([clear])
         self.assertEqual(geometry.shape[1], 9)
         self.assertEqual(clear_x.shape[1], 14)
+
+    def test_trusted_row_needs_its_own_end_and_a_close_kick_frame(self):
+        row = {
+            "end_source": "event",
+            "frame_signed_dt": 0.4,
+            "ball_event_m": 1.2,
+        }
+        self.assertTrue(is_trusted(row))
+        borrowed = dict(row, end_source="next_event")
+        self.assertTrue(end_is_on_event(row))
+        self.assertFalse(is_trusted(borrowed))
+        late = dict(row, frame_signed_dt=1.4)
+        self.assertFalse(kick_frame_is_close(late))
+        far = dict(row, ball_event_m=3.5)
+        self.assertFalse(is_trusted(far))
 
     def test_brier_of_a_perfect_prediction_is_zero(self):
         scores = binary_scores(np.array([0, 1]), np.array([0.0, 1.0]))

@@ -1,0 +1,25 @@
+{
+  "round": "trusted-subset",
+  "conclusions": [
+    "抽样核对过原始事件：传球事件自己写下的终点可以和下一触球分开；失败球如果借用下一事件，名为接球人的下一动作可以是对方在处理球。因此这轮只保留事件自带终点，并且出脚帧距事件不超过 1 秒、球的位置误差不超过 3 米。",
+    "按这个标准，预先留出的测试场只剩 5 脚，且全部成功；验证场 31 脚里只有 1 脚失败。上一轮那种稳定的空间排序增益，在这个子集上无法确认。",
+    "三场至少有 8 脚可信传球的轮换里，人工空间特征的排序仍高于纯几何，但最大的一场里两个模型的概率误差都大于常数成功率。同一结构的栅格在验证场因为那 1 脚失败得到很高的排序分，测试场的概率误差反而最差。不能说它超过了模型 B。"
+  ],
+  "next": "先不要加深栅格。模型 B 仍是基线，但这轮没有在可信标签上证明它优于几何模型或常数。下一步需要更多带自带终点的传球，而不是把借来的下一事件终点再放回训练集。",
+  "rule": "Keep a pass only when its own event writes the end, the tracking frame is within 1 s, and the ball is within 3 m of that kick.",
+  "checked_events": [
+    "J03WMX 18226500000013",
+    "J03WMX 18226500000033",
+    "J03WMX 18226500000038"
+  ],
+  "support": {
+    "trusted_counts": {"train": "157/2275, 19 failures", "val": "31/611, 1 failure", "test": "5/462, 0 failures"},
+    "val_brier": {"constant": 0.0391, "geometry": 0.0329, "geometry_spatial": 0.0564, "position_raster": 0.0293},
+    "val_auroc": {"geometry": 0.967, "geometry_spatial": 0.800, "position_raster": 1.0},
+    "test_brier": {"constant": 0.0146, "geometry": 0.0109, "geometry_spatial": 0.0259, "position_raster": 0.0376},
+    "leave_one_match_out_matches_with_at_least_8": ["J03WN1 n=8", "J03WOY n=140", "J03WQQ n=31"],
+    "largest_match_J03WOY_brier": {"constant": 0.0858, "geometry": 0.1139, "geometry_spatial": 0.1080},
+    "largest_match_J03WOY_auroc": {"geometry": 0.579, "geometry_spatial": 0.659},
+    "local_artifacts": "outputs/trusted_subset/"
+  }
+}

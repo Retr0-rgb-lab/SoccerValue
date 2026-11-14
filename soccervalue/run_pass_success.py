@@ -109,14 +109,14 @@ def score_split(rows: list[dict], geometry: LogisticSuccess, spatial: LogisticSu
     return scored
 
 
-def leave_one_match_out(rows: list[dict]) -> list[dict]:
+def leave_one_match_out(rows: list[dict], min_test: int = 20) -> list[dict]:
     """Refit A and B on every match except one. The raster is not refit here."""
     matches = sorted({row["match_id"] for row in rows})
     report = []
     for hold in matches:
         train = [row for row in rows if row["match_id"] != hold]
         test = [row for row in rows if row["match_id"] == hold]
-        if len(test) < 20 or len({row["success"] for row in train}) < 2:
+        if len(test) < min_test or len({row["success"] for row in train}) < 2:
             continue
         train_rate = float(np.mean([row["success"] for row in train]))
         geometry, spatial = fit_linear(train)

@@ -114,7 +114,8 @@ def orient_samples(samples: list[dict], transform: str, pitch_x: float, pitch_y:
         if ball is None or not players:
             continue
         bx, by = convert(transform, ball[0], ball[1], pitch_x, pitch_y)
-        if math.hypot(bx - sample["start_x"], by - sample["start_y"]) > 8:
+        ball_event_m = math.hypot(bx - sample["start_x"], by - sample["start_y"])
+        if ball_event_m > 8:
             continue
         passer = sample.get("track_passer")
         if passer is not None:
@@ -147,7 +148,9 @@ def orient_samples(samples: list[dict], transform: str, pitch_x: float, pitch_y:
                 "end_source": sample.get("end_source"),
                 "next_event_relation": sample.get("next_event_relation"),
                 "next_event_tag": sample.get("next_event_tag"),
+                "end_gap_s": sample.get("end_gap_s"),
                 "frame_signed_dt": sample.get("frame_signed_dt"),
+                "ball_event_m": ball_event_m,
             }
         )
     return rows
