@@ -1,0 +1,18 @@
+{
+  "round": "pass-success",
+  "conclusions": [
+    "在当前七场数据上，加入少量人工空间特征，能较一致地改善已记录传球结果的排序。",
+    "当前栅格 CNN 没有显示出超越人工空间特征的明确优势，不能因此宣称它学到了更强的空间理解。",
+    "意图终点与出脚时刻仍不可靠，因此结果暂时只支持回顾性的记录预测，不支持未执行传球推荐。"
+  ],
+  "next": "保留几何加人工空间特征的模型 B 作为强基线。抽样核验终点和出脚帧之后，再在标签更可信、时间更准确的子集里检查空间增益是否还在，以及栅格 CNN 是否仍然落后。先不加深 CNN。",
+  "support": {
+    "leave_one_match_out_spatial_brier_better": "6/7",
+    "leave_one_match_out_spatial_auroc_better": "7/7",
+    "val_auroc": {"geometry": 0.800, "geometry_spatial": 0.886, "position_raster": 0.795},
+    "test_auroc": {"geometry": 0.802, "geometry_spatial": 0.854, "position_raster": 0.818},
+    "test_brier": {"geometry": 0.0528, "geometry_spatial": 0.0520, "position_raster": 0.0513},
+    "fraction_end_from_next_event": 0.765,
+    "local_artifacts": "outputs/pass_success/"
+  }
+}

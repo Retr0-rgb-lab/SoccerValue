@@ -1,35 +1,30 @@
-"""Ball-location logistic baseline for ground-pass success."""
+"""Logistic pass-success models that share one family and differ by features."""
 
 from __future__ import annotations
+
+from collections.abc import Callable
 
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
 
-def design_matrix(rows: list[dict]) -> tuple[np.ndarray, np.ndarray]:
-    features = []
-    labels = []
-    for row in rows:
-        pitch_x, pitch_y = row["pitch"]
-        bx, by = row["ball"]
-        ex, ey = row["end"]
-        distance = ((ex - bx) ** 2 + (ey - by) ** 2) ** 0.5
-        diagonal = (pitch_x**2 + pitch_y**2) ** 0.5
-        features.append([bx / pitch_x, by / pitch_y, distance / diagonal])
-        labels.append(row["success"])
-    return np.asarray(features, dtype=np.float64), np.asarray(labels, dtype=np.int64)
-
-
-class BallLocationBaseline:
-    def __init__(self) -> None:
+class LogisticSuccess:
+    def __init__(self, feature_fn: Callable[[list[dict]], tuple[np.ndarray, np.ndarray]], names: tuple[str, ...]) -> None:
+        self.feature_fn = feature_fn
+        self.names = names
         self.scaler = StandardScaler()
-        self.model = LogisticRegression(max_iter=500)
+        self.model = LogisticRegression(max_iter=1000)
 
     def fit(self, rows: list[dict]) -> None:
-        features, labels = design_matrix(rows)
+        features, labels = self.feature_fn(rows)
         self.model.fit(self.scaler.fit_transform(features), labels)
 
     def predict(self, rows: list[dict]) -> np.ndarray:
-        features, _labels = design_matrix(rows)
+        features, _labels = self.feature_fn(rows)
         return self.model.predict_proba(self.scaler.transform(features))[:, 1]
+
+    def coefficients(self) -> dict[str, float]:
+        scaled = {name: float(value) for name, value in zip(self.names, self.model.coef_[0])}
+        scaled["intercept"] = float(self.model.intercept_[0])
+        return scaled

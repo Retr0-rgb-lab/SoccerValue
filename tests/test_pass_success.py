@@ -6,7 +6,8 @@ import numpy as np
 import torch
 
 from soccervalue.align import alignment_report, choose_transform, convert, frame_cost, orient_samples
-from soccervalue.events import load_open_flat_passes
+from soccervalue.events import label_audit, load_open_flat_passes
+from soccervalue.features import geometry_matrix, spatial_matrix
 from soccervalue.matches import TEST_MATCHES, TRAIN_MATCHES, VAL_MATCHES, assert_split_disjoint
 from soccervalue.metrics import binary_scores
 from soccervalue.model import SoccerMapSuccess, destination_loss
@@ -69,7 +70,12 @@ class PassAndSplitTests(unittest.TestCase):
         self.assertEqual((by_id["flat"]["end_x"], by_id["flat"]["end_y"]), (55.0, 22.0))
         self.assertEqual(by_id["same"]["success"], 0)
         self.assertEqual((by_id["same"]["end_x"], by_id["same"]["end_y"]), (28.0, 24.0))
+        self.assertEqual(by_id["same"]["end_source"], "next_event")
+        self.assertEqual(by_id["flat"]["end_source"], "event")
         self.assertEqual(by_id["same"]["team_left"], "home")
+        audit = label_audit(passes)
+        self.assertEqual(audit["n_failure"], 1)
+        self.assertEqual(audit["fraction_failures_end_from_next_event"], 1.0)
 
     def test_sync_prefers_the_frame_where_the_ball_matches_the_event(self):
         near_in_time = frame_cost(ball_event_m=18.0, passer_ball_m=8.0, dt_s=0.1)
@@ -140,6 +146,28 @@ class PassAndSplitTests(unittest.TestCase):
         self.assertAlmostEqual(loss_close, loss_elsewhere)
         predicted[0, 0, iy, ix] = 0.1
         self.assertGreater(float(destination_loss(predicted, [row])), loss_close)
+
+    def test_spatial_features_count_a_defender_on_the_lane(self):
+        clear = {
+            "success": 1,
+            "ball": (20.0, 34.0),
+            "end": (60.0, 34.0),
+            "attack": [(20.0, 34.0), (70.0, 34.0)],
+            "defense": [(80.0, 10.0)],
+            "pitch": (105.0, 68.0),
+        }
+        blocked = dict(clear)
+        blocked["defense"] = [(40.0, 34.0)]
+        clear_x, _ = spatial_matrix([clear])
+        blocked_x, _ = spatial_matrix([blocked])
+        lane_count = -2
+        clearance = -1
+        self.assertEqual(clear_x[0, lane_count], 0.0)
+        self.assertEqual(blocked_x[0, lane_count], 1.0)
+        self.assertLess(blocked_x[0, clearance], clear_x[0, clearance])
+        geometry, _ = geometry_matrix([clear])
+        self.assertEqual(geometry.shape[1], 9)
+        self.assertEqual(clear_x.shape[1], 14)
 
     def test_brier_of_a_perfect_prediction_is_zero(self):
         scores = binary_scores(np.array([0, 1]), np.array([0.0, 1.0]))

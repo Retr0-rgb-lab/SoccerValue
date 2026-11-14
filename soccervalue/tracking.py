@@ -32,6 +32,7 @@ def attach_tracking(tracking_path: Path, passes: list[dict], pitch: tuple[float,
         item["track_passer"] = chosen["passer"]
         item["track_players"] = chosen["players"]
         item["frame_dt"] = chosen["dt"]
+        item["frame_signed_dt"] = chosen["signed_dt"]
 
 
 def _read_trajectories(path: Path) -> tuple[list[tuple[float, float, float]], dict]:
@@ -98,6 +99,7 @@ def _best_frame(item, target, ball, ball_times, players, player_times, pitch_x, 
         "passer": (passer[0], passer[1]) if passer else None,
         "players": snapshot,
         "dt": abs(stamp - target),
+        "signed_dt": stamp - target,
     }
 
 

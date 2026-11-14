@@ -77,6 +77,7 @@ def alignment_report(samples: list[dict], transform: str, pitch_x: float, pitch_
         if passer is not None:
             px, py = convert(transform, passer[0], passer[1], pitch_x, pitch_y)
             passer_errors.append(math.hypot(px - bx, py - by))
+    signed = [float(sample["frame_signed_dt"]) for sample in samples if sample.get("frame_signed_dt") is not None]
     ball_median = median(ball_errors)
     passer_median = median(passer_errors)
     return {
@@ -88,6 +89,9 @@ def alignment_report(samples: list[dict], transform: str, pitch_x: float, pitch_
         "passer_vs_ball_median_m": passer_median,
         "ball_vs_event_over_2m": _fraction_over(ball_errors, 2.0),
         "ball_vs_event_over_5m": _fraction_over(ball_errors, 5.0),
+        "frame_signed_dt_median_s": median(signed),
+        "fraction_frame_after_event": _fraction_over(signed, 0.0) if signed else None,
+        "fraction_frame_more_than_1s_after": _fraction_over(signed, 1.0) if signed else None,
         "usable": ball_median is not None
         and passer_median is not None
         and ball_median <= ALIGN_MEDIAN_LIMIT_M
@@ -132,6 +136,7 @@ def orient_samples(samples: list[dict], transform: str, pitch_x: float, pitch_y:
         rows.append(
             {
                 "match_id": sample["match_id"],
+                "event_id": sample.get("event_id"),
                 "success": sample["success"],
                 "start": start,
                 "end": end,
@@ -139,6 +144,10 @@ def orient_samples(samples: list[dict], transform: str, pitch_x: float, pitch_y:
                 "attack": attack,
                 "defense": defense,
                 "pitch": (pitch_x, pitch_y),
+                "end_source": sample.get("end_source"),
+                "next_event_relation": sample.get("next_event_relation"),
+                "next_event_tag": sample.get("next_event_tag"),
+                "frame_signed_dt": sample.get("frame_signed_dt"),
             }
         )
     return rows
