@@ -215,3 +215,87 @@ def _team_left_at(markers: list[tuple[datetime, str]], when: datetime) -> str | 
 
 def _distance(a: tuple[float, float], b: tuple[float, float]) -> float:
     return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
+
+
+def load_timeline(events_path: Path, match_id: str) -> list[dict]:
+    """Every event in time order, including shots and whistles.
+
+    `load_open_flat_passes` stays a filtered view. This list is the one the
+    state-value labels read.
+    """
+    rows: list[dict] = []
+    section = None
+    team_left = None
+    for _event, elem in etree.iterparse(str(events_path), events=("end",), tag="Event"):
+        when = datetime.fromisoformat(elem.get("EventTime"))
+        direct = list(elem)
+        tag = direct[0].tag if direct else ""
+        if tag == "KickOff":
+            section = direct[0].get("GameSection") or section
+            if direct[0].get("TeamLeft"):
+                team_left = direct[0].get("TeamLeft")
+            game_section = section
+        elif tag == "FinalWhistle":
+            game_section = direct[0].get("GameSection") or section
+            section = None
+        else:
+            game_section = section
+        shot = elem.find("./ShotAtGoal")
+        play = elem.find(".//Play")
+        other = elem.find("./OtherBallAction")
+        tackle = elem.find("./TacklingGame")
+        point = _event_xy(elem)
+        team_id = None
+        player_id = None
+        evaluation = None
+        is_shot = False
+        is_goal = False
+        xg = None
+        possession_change = False
+        if shot is not None:
+            is_shot = True
+            team_id = shot.get("Team")
+            player_id = shot.get("Player")
+            is_goal = shot.find("./SuccessfulShot") is not None
+            if shot.get("xG") is not None:
+                xg = float(shot.get("xG"))
+        elif play is not None and tag == "Play":
+            team_id = play.get("Team")
+            player_id = play.get("Player")
+            evaluation = play.get("Evaluation")
+        elif other is not None:
+            team_id = other.get("Team")
+            player_id = other.get("Player")
+        elif tackle is not None:
+            team_id = tackle.get("WinnerTeam")
+            player_id = tackle.get("Winner")
+            possession_change = (tackle.get("PossessionChange") or "").lower() == "true"
+        rows.append(
+            {
+                "match_id": match_id,
+                "time": when,
+                "event_id": elem.get("EventId"),
+                "event_tag": tag,
+                "team_id": team_id,
+                "player_id": player_id,
+                "x": None if point is None else point[0],
+                "y": None if point is None else point[1],
+                "game_section": game_section,
+                "team_left": team_left,
+                "is_shot": is_shot,
+                "is_goal": is_goal,
+                "xg": xg,
+                "possession_change": possession_change,
+                "evaluation": evaluation,
+            }
+        )
+        elem.clear()
+    rows.sort(key=lambda item: item["time"])
+    return rows
+
+
+def _event_xy(elem: etree._Element) -> tuple[float, float] | None:
+    recorded = _coords(elem, source=False)
+    if recorded is not None:
+        return recorded
+    return _coords(elem, source=True)

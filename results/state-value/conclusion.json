@@ -1,0 +1,20 @@
+{
+  "round": "state-value",
+  "conclusions": [
+    "在七场数据上，只用球的位置和球是否在被评价球队脚下，对未来 10 秒内本方或对方是否射门的预测，在验证场和测试场上都好于常数。",
+    "再加上双方站位的小栅格没有超过这个简单模型。10 秒测试场上，本方射门一头的 Brier 是 0.031，简单模型是 0.028；20 秒窗口里栅格的排序还低于常数。",
+    "正例大约只占状态的 3% 和 1%。这次不能写成站位没有用，只能写成当前这个网络没有把站位用起来。标签是射门机会，不是进球概率。"
+  ],
+  "next": "价值模型先停在「球的位置 + 是否控球」这个基线上。不要把站位栅格接进世界模型打分，也不要用模拟局面重新训练它。",
+  "support": {
+    "shots": 164,
+    "goals": 16,
+    "states_10s": {"train": 4192, "val": 877, "test": 825},
+    "test_10s_for_brier": {"constant": 0.0318, "simple": 0.0282, "spatial": 0.0312},
+    "test_10s_for_auroc": {"constant": 0.5, "simple": 0.873, "spatial": 0.715},
+    "test_10s_against_brier": {"constant": 0.0132, "simple": 0.0130, "spatial": 0.0131},
+    "test_10s_against_auroc": {"constant": 0.5, "simple": 0.832, "spatial": 0.671},
+    "test_20s_for_auroc": {"simple": 0.815, "spatial": 0.331},
+    "local_artifacts": "outputs/state_value/"
+  }
+}
