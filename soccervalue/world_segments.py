@@ -127,9 +127,12 @@ def build_segments(ball, players: dict, pitch: tuple[float, float], t_start: flo
         future = sampled[start : end + 1]
         if not np.isfinite(future).all():
             continue
-        roster = _roster(player_xy[start], player_xy[start - 2] if start >= 2 else player_xy[start], names, teams)
+        earlier = player_xy[start - 2] if start >= 2 else player_xy[start]
+        roster = _roster(player_xy[start], earlier, names, teams)
         if len(roster) < 4:
             continue
+        kept = [index for index in range(len(names)) if np.isfinite(player_xy[start, index]).all()]
+        player_future = player_xy[start : end + 1, kept, :]
         toucher = None
         if reason == "touch" and end < len(distances):
             order = int(np.nanargmin(distances[end]))
@@ -143,6 +146,7 @@ def build_segments(ball, players: dict, pitch: tuple[float, float], t_start: flo
                 "dt": DT,
                 "reason": reason,
                 "roster": roster,
+                "players": player_future,
                 "toucher": toucher,
             }
         )

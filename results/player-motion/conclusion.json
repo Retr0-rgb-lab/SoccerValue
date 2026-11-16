@@ -1,0 +1,18 @@
+{
+  "round": "player-motion",
+  "conclusions": [
+    "在滚动模型给出的球路上，单条预测的球员位置没有超过常速度。验证场上，靠近球的五个人在 1 秒内的平均误差是 0.70 米，常速度是 0.57 米；片段结束时是 3.77 米对 3.46 米。",
+    "换成真实球路也没有反过来。测试场方向相同。",
+    "因此球员运动先停在常速度。球的衰减滚动和下一触球排序仍用上一轮的结果。这一轮没有采样意图，也没有把模拟局面送进价值模型。"
+  ],
+  "decision": "stop",
+  "rule": "Pass only if one drag-ball rollout has lower validation error than constant velocity at 1s and at the segment end.",
+  "support": {
+    "val_drag_ade_1s_m": {"constant_velocity": 0.569, "player_motion": 0.696},
+    "val_drag_end_m": {"constant_velocity": 3.464, "player_motion": 3.768},
+    "test_drag_ade_1s_m": {"constant_velocity": 0.539, "player_motion": 0.680},
+    "test_drag_end_m": {"constant_velocity": 3.407, "player_motion": 3.905},
+    "local_artifacts": "outputs/player_motion/"
+  },
+  "next": "组合世界模型时，球用衰减滚动，触球用上一轮的排序，球员用常速度。先不要把这个球员网络加大，也不要开始未执行传球的打分。"
+}

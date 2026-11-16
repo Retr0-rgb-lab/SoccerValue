@@ -3,6 +3,10 @@ import unittest
 import numpy as np
 
 from soccervalue.ball_flight import fit_drag, mean_error
+import torch
+from torch import nn
+
+from soccervalue.player_motion import constant_player, nearest_to_path, rollout
 from soccervalue.touch_head import baseline_index, player_features
 from soccervalue.world_segments import DT, constant_velocity, roll_position, touch_indices
 
@@ -48,6 +52,28 @@ class WorldSegmentTests(unittest.TestCase):
         velocity = np.array([3.0, -1.0])
         times = np.array([0.0, 0.5, 1.0])
         np.testing.assert_allclose(constant_velocity(origin, velocity, times), roll_position(origin, velocity, times, 0.0))
+
+    def test_nearest_players_are_chosen_from_the_kick_not_the_future(self):
+        players = np.array([[0.0, 8.0], [2.0, 0.2], [30.0, 20.0]])
+        ball = np.stack([np.array([index * 1.0, 0.0]) for index in range(6)])
+        chosen = nearest_to_path(players, ball, 1)
+        self.assertEqual(int(chosen[0]), 1)
+
+    def test_velocity_copy_rollout_matches_constant_velocity(self):
+        class CopyVelocity(nn.Module):
+            def forward(self, tokens, pad_mask):
+                return tokens[..., 2:4]
+
+        player = {"xy": np.array([1.0, 2.0]), "velocity": np.array([4.0, -2.0]), "team": "A", "id": "p"}
+        steps = 5
+        segment = {
+            "origin": np.zeros(2),
+            "dt": DT,
+            "roster": [player],
+        }
+        ball = np.zeros((steps, 2))
+        predicted = rollout(CopyVelocity(), segment, ball, torch.device("cpu"))
+        np.testing.assert_allclose(predicted[:, 0, :], constant_player(player, steps), atol=1e-5)
 
 
 if __name__ == "__main__":
