@@ -1,0 +1,23 @@
+{
+  "round": "world-ball",
+  "conclusions": [
+    "地面球用一个衰减系数滚动，在验证场上 1 秒和片段结束时的位置误差都低于常速度。测试场方向相同：1 秒误差 1.61 米对 2.10 米，结束时 3.60 米对 6.56 米。",
+    "下一触球的人，在真实球路上 Top-1 是 0.70，最早拦截的对照是 0.31。换成滚动模型的球路之后是 0.65，仍然高于对照。",
+    "触球是由球速突变且 2 米内有人来定义的，不是传球事件的终点。这一轮没有预测球员跑动，也没有用价值模型给片段打分。"
+  ],
+  "decision": {
+    "ball_go": true,
+    "touch_go_on_real_ball": true
+  },
+  "support": {
+    "drag_per_second": 0.3,
+    "val_ball_ade_1s_m": {"constant_velocity": 2.493, "drag": 1.901},
+    "val_ball_end_m": {"constant_velocity": 7.453, "drag": 4.044},
+    "test_ball_ade_1s_m": {"constant_velocity": 2.099, "drag": 1.615},
+    "test_ball_end_m": {"constant_velocity": 6.562, "drag": 3.601},
+    "val_touch_top1": {"real_ball_baseline": 0.312, "real_ball_model": 0.702, "drag_ball_model": 0.648},
+    "segments": {"train": 7960, "val": 1594, "test": 1496},
+    "local_artifacts": "outputs/world_ball/"
+  },
+  "next": "球和触球都过了验证场的线。下一步才训练球员运动，对照仍是常速度，通过标准用单条轨迹的误差，不用 20 条里挑最好的那条。先不采样意图，也不把模拟局面送进价值模型。"
+}
