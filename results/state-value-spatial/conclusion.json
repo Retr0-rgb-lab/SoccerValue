@@ -1,0 +1,24 @@
+{
+  "round": "state-value-spatial",
+  "conclusions": [
+    "四个以米为单位的空间特征，没有让 10 秒本方射门的排序超过「球的位置 + 谁控球」。",
+    "验证场 AUROC 从 0.844 降到 0.825。七场轮流留出只有 4 场上升，预先规定的通过线是至少 5 场。",
+    "因此 10 秒射门价值先停在球和控球方。以后世界模型要交给它打分的状态，只需触球时的球坐标，以及下一触球是不是被评价的球队。"
+  ],
+  "decision": "stop",
+  "rule": "GO only if validation own-shot AUROC rises, validation Brier is not worse by more than 0.002, and at least 5 leave-one-match folds also rise.",
+  "support": {
+    "val_auroc": {"simple": 0.844, "spatial": 0.825},
+    "val_brier": {"simple": 0.03118, "spatial": 0.03153},
+    "test_auroc": {"simple": 0.873, "spatial": 0.874},
+    "test_brier": {"simple": 0.02824, "spatial": 0.02813},
+    "leave_one_match_auroc_wins": "4/7",
+    "features_added": [
+      "nearest opponent to the ball",
+      "ball distance to the opponent goal line",
+      "count of T players ahead of the ball",
+      "opponents within 5 m of the ball"
+    ],
+    "local_artifacts": "outputs/state_value_spatial/"
+  }
+}

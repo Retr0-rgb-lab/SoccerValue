@@ -13,6 +13,7 @@ from soccervalue.value_model import (
     StateValueNet,
     constant_rates,
     simple_features,
+    spatial_features,
     two_head_loss,
 )
 
@@ -179,6 +180,23 @@ class ValueModelTests(unittest.TestCase):
         features, _for, _against = simple_features([row])
         self.assertAlmostEqual(features[0, 2], 10 / 105)
         self.assertAlmostEqual(features[0, 3], 95 / 105)
+
+    def test_spatial_features_count_pressure_and_players_ahead(self):
+        row = {
+            "ball": (10.0, 34.0),
+            "pitch": (105.0, 68.0),
+            "possession_by_t": 1,
+            "y_for": 0,
+            "y_against": 0,
+            "team": [(5.0, 34.0), (20.0, 34.0)],
+            "opponent": [(12.0, 34.0), (10.0, 40.0)],
+        }
+        features, _for, _against = spatial_features([row])
+        diagonal = (105.0**2 + 68.0**2) ** 0.5
+        self.assertAlmostEqual(features[0, 5], 2.0 / diagonal)
+        self.assertAlmostEqual(features[0, 6], 95 / 105)
+        self.assertEqual(features[0, 7], 1.0)
+        self.assertEqual(features[0, 8], 1.0)
 
     def test_constant_rate_is_the_training_frequency(self):
         rows = [{"y_for": value, "y_against": 0} for value in (1, 0, 0, 0)]

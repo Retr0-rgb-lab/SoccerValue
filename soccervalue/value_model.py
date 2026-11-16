@@ -11,6 +11,32 @@ from torch import nn
 from soccervalue.raster import raster
 
 
+def _nearest(origin: tuple[float, float], points: list[tuple[float, float]], fallback: float) -> float:
+    if not points:
+        return fallback
+    return min(((point[0] - origin[0]) ** 2 + (point[1] - origin[1]) ** 2) ** 0.5 for point in points)
+
+
+def spatial_features(rows: list[dict]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Simple state features plus four meter counts. No extra model capacity."""
+    base, y_for, y_against = simple_features(rows)
+    extra = []
+    for row in rows:
+        pitch_x, pitch_y = row["pitch"]
+        ball = row["ball"]
+        diagonal = (pitch_x**2 + pitch_y**2) ** 0.5
+        opponents = row["opponent"]
+        extra.append(
+            [
+                _nearest(ball, opponents, diagonal) / diagonal,
+                (pitch_x - ball[0]) / pitch_x,
+                float(sum(point[0] > ball[0] for point in row["team"])),
+                float(sum(_nearest(ball, [point], diagonal) <= 5.0 for point in opponents)),
+            ]
+        )
+    return np.column_stack([base, np.asarray(extra, dtype=np.float64)]), y_for, y_against
+
+
 def simple_features(rows: list[dict]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     features = []
     y_for = []
@@ -61,7 +87,8 @@ def constant_rates(train_rows: list[dict]) -> tuple[float, float]:
 class SimpleStateValue:
     """Separate logistic heads for team T and the opponent. No class balancing."""
 
-    def __init__(self) -> None:
+    def __init__(self, feature_fn=simple_features) -> None:
+        self.feature_fn = feature_fn
         self.scaler = StandardScaler()
         self.for_model = LogisticRegression(max_iter=1000)
         self.against_model = LogisticRegression(max_iter=1000)
@@ -69,13 +96,13 @@ class SimpleStateValue:
         self.against_constant = None
 
     def fit(self, rows: list[dict]) -> None:
-        features, y_for, y_against = simple_features(rows)
+        features, y_for, y_against = self.feature_fn(rows)
         scaled = self.scaler.fit_transform(features)
         self.for_constant = _fit_or_constant(self.for_model, scaled, y_for)
         self.against_constant = _fit_or_constant(self.against_model, scaled, y_against)
 
     def predict(self, rows: list[dict]) -> np.ndarray:
-        features, _for, _against = simple_features(rows)
+        features, _for, _against = self.feature_fn(rows)
         scaled = self.scaler.transform(features)
         return np.column_stack(
             [
