@@ -1,8 +1,11 @@
 import unittest
 from pathlib import Path
 
+import numpy as np
+
 from soccervalue.events import load_open_flat_passes
-from soccervalue.intent import IntentTracker, along_distance, perp_distance
+from soccervalue.intent import FEATURE_NAMES, IntentTracker, along_distance, perp_distance
+from soccervalue.intent_model import build_dataset, fit_intent_model, label_rows, predict_pick, rule_picks, score_top1
 
 PITCH = (105.0, 68.0)
 
@@ -111,6 +114,128 @@ class IntentRuleTests(unittest.TestCase):
         direction = (1.0, 0.0)
         self.assertAlmostEqual(perp_distance((10.0, 3.0), (0.0, 0.0), direction), 3.0)
         self.assertAlmostEqual(along_distance((10.0, 3.0), (0.0, 0.0), direction), 10.0)
+
+
+class CandidateTableTests(unittest.TestCase):
+    def people(self, **extra):
+        base = {
+            "p1": (30.0, 34.0, "home"),
+            "t1": (50.0, 35.0, "home"),
+            "t2": (45.0, 44.0, "home"),
+            "d1": (40.0, 34.0, "away"),
+        }
+        base.update(extra)
+        return snapshot(**base)
+
+    def test_the_table_holds_the_teammates_and_not_the_opponent(self):
+        result = tracker().estimate(item(), 5, self.people())
+        players = [row["player"] for row in result["candidates"]]
+        self.assertIn("t1", players)
+        self.assertIn("t2", players)
+        self.assertNotIn("d1", players)
+        self.assertNotIn("p1", players)
+
+    def test_a_teammate_far_off_the_ray_is_not_a_candidate(self):
+        result = tracker().estimate(item(), 5, self.people(wide=(45.0, 60.0, "home")))
+        self.assertNotIn("wide", [row["player"] for row in result["candidates"]])
+
+    def test_every_candidate_carries_the_feature_table(self):
+        result = tracker().estimate(item(), 5, self.people())
+        for row in result["candidates"]:
+            self.assertEqual(len(row["features"]), len(FEATURE_NAMES))
+
+    def test_the_features_do_not_depend_on_which_way_the_team_attacks(self):
+        """The aim direction turns around with the frame, so nothing in the
+        table may reveal it."""
+        people = self.people()
+        forward = tracker().estimate(item(), 5, people)
+        turned_people = {name: (-x, -y, team) for name, (x, y, team) in people.items()}
+        turned = IntentTracker(
+            [(stamp, -x, -y) for stamp, x, y in ball_flight()], PITCH[0], PITCH[1]
+        ).estimate(item(), 5, turned_people)
+        self.assertEqual(forward["player"], turned["player"])
+        for left, right in zip(forward["candidates"], turned["candidates"]):
+            for one, other in zip(left["features"], right["features"]):
+                self.assertAlmostEqual(one, other, places=6)
+
+
+class IntentModelTests(unittest.TestCase):
+    def make_row(self, recipient="t1"):
+        candidates = [
+            {"player": "t1", "features": [0.1] * len(FEATURE_NAMES)},
+            {"player": "t2", "features": [0.4] * len(FEATURE_NAMES)},
+        ]
+        return {
+            "match_id": "M1",
+            "event_id": "e1",
+            "success": 1,
+            "recipient": recipient,
+            "intent_player": "t2",
+            "intent_candidates": candidates,
+        }
+
+    def test_a_row_without_the_recipient_is_skipped(self):
+        dataset, skipped = build_dataset([self.make_row(recipient="nobody")])
+        self.assertEqual(len(dataset), 0)
+        self.assertEqual(skipped, 1)
+
+    def test_the_labelled_candidate_is_found(self):
+        features, players, index = label_rows(self.make_row())
+        self.assertEqual(players[index], "t1")
+        self.assertEqual(features.shape, (2, len(FEATURE_NAMES)))
+
+    def test_a_trained_model_picks_the_labelled_candidate(self):
+        dataset, _ = build_dataset([self.make_row() for _ in range(12)])
+        net, mean, std = fit_intent_model(dataset, model="linear", steps=300)
+        picks = {item["event_id"]: predict_pick(net, item, mean, std) for item in dataset}
+        scored = score_top1(dataset, picks)
+        self.assertEqual(scored["top1"], 1.0)
+
+    def test_the_rule_pick_is_read_from_the_row(self):
+        dataset, _ = build_dataset([self.make_row()])
+        self.assertEqual(rule_picks(dataset)["e1"], "t2")
+
+
+class FailedPassReportTests(unittest.TestCase):
+    def test_the_report_counts_agreement_and_the_distance_to_the_ray(self):
+        from soccervalue.run_pass_intent_model import pick_report
+
+        def make(event_id, recipient):
+            return {
+                "match_id": "M1",
+                "event_id": event_id,
+                "success": 0,
+                "recipient": recipient,
+                "intent_player": "t1",
+                "intent_candidates": [
+                    {"player": "t1", "features": [0.1] * len(FEATURE_NAMES)},
+                    {"player": "t2", "features": [0.3] * len(FEATURE_NAMES)},
+                ],
+            }
+
+        failures, _ = build_dataset([make("f1", None), make("f2", None)], require_label=False)
+        training, _ = build_dataset(
+            [
+                {
+                    "match_id": "M1",
+                    "event_id": f"t{index}",
+                    "success": 1,
+                    "recipient": "t1",
+                    "intent_player": "t1",
+                    "intent_candidates": [
+                        {"player": "t1", "features": [0.1] * len(FEATURE_NAMES)},
+                        {"player": "t2", "features": [0.3] * len(FEATURE_NAMES)},
+                    ],
+                }
+                for index in range(12)
+            ]
+        )
+        net, mean, std = fit_intent_model(training, model="linear", steps=50)
+        report = pick_report(net, mean, std, failures)
+        self.assertEqual(report["n"], 2)
+        self.assertIsNotNone(report["same_pick_as_the_rule"])
+        self.assertIn("model_pick", report)
+        self.assertIn("where_they_differ", report)
 
 
 class NextEventAttributionTests(unittest.TestCase):

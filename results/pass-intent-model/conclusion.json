@@ -1,0 +1,135 @@
+{
+  "round": "pass-intent-model",
+  "conclusions": [
+    "训练出来的意图接球人模型明显超过几何规则。测试场（完全留出的一场）：MLP 0.9045、线性 0.8966，几何规则 0.7878。验证场：0.8472 和 0.8426 对 0.7755。",
+    "逐场留一比赛，七场里两个变体都每一场都超过规则，7/7。规则每场 0.7686 到 0.8436，线性 0.8099 到 0.9091，MLP 0.8348 到 0.9127。预先规定的通过线是测试场超过且至少 5 场留出变好，这一轮通过。",
+    "监督信号只能用成功球的标注接球人。2872 脚有意图目标的传球里，2515 脚的标注接球人在候选集内，可以当训练样本，保留率 87.6%。失败球没有可用标签，只能靠迁移应用。",
+    "模型的优势来自哪里是可测的：在留出的成功球上，模型和规则选的人不同的时候，模型选中的人离瞄准射线更远（线性 3.99 米对 1.54 米，MLP 5.52 米对 2.19 米），身边最近的防守者也更远（线性 7.31 米对 5.77 米，MLP 7.64 米对 5.03 米）。也就是说模型学到的是「射线上更开阔的那个队友」，而不只是「射线上最近的那个队友」。",
+    "这在成功球上是对的：球确实到了那个开阔的队友手里。但在失败球上，恰恰是传球者瞄了一个被盯住的人，模型会挑另一个更开阔的人。失败球上没有标签，无法验证。两种估计在 243 脚失败球上分歧很大：线性与规则同选 83.5%，MLP 只有 61.7%；分歧处模型选中的人离射线中位 5.15 米和 8.04 米，规则是 2.58 米和 2.57 米。",
+    "因此这一轮不把传球成功率模型的终点换成模型。终点必须在那 243 脚失败球上也是对的，而模型在那一类的行为没有验证过，用它会把模型自己的偏差写进终点，进而写进标签。几何规则仍然是终点估计器。如果以后要用模型，用线性变体：它在成功球上只比 MLP 低 0.8 个百分点，但在失败球上与规则的分歧小得多，离射线也更近。",
+    "这一轮没有推荐任何未执行的传球，也没有把新模型接进传球成功率模型。"
+  ],
+  "decision": {
+    "trained_model_beats_the_geometric_rule": "go",
+    "endpoint_estimator": "keep the geometric rule",
+    "model_variant_if_used": "linear",
+    "recommend_unexecuted_passes": "no"
+  },
+  "rule": {
+    "model": "GO only if the model beats the geometric rule on top-1 accuracy on the held-out test match and on at least 5 of the 7 leave-one-match-out folds.",
+    "report": "The retention rate, the per-match table and the behaviour on failed passes are reported whatever the decision is.",
+    "deviation": "The bar was cleared and the rule named the model as the estimator. The endpoint estimator was kept on the geometric rule anyway, because a measured diagnostic showed where the model's extra wins come from: it prefers the more open teammate, and that preference is exactly what cannot be checked on the failed passes, which are the passes whose endpoint carries the information. The swap is deferred to a round that measures it downstream."
+  },
+  "support": {
+    "features": [
+      "along_m",
+      "perp_m",
+      "along_over_distance",
+      "distance_to_ball_m",
+      "distance_to_passer_m",
+      "candidate_speed_mps",
+      "candidate_velocity_along_mps",
+      "candidate_velocity_perp_mps",
+      "nearest_defender_to_candidate_m",
+      "nearest_defender_to_ball_m",
+      "defenders_within_3m_of_lane",
+      "lane_clearance_m",
+      "candidates_closer_to_ball",
+      "perp_rank",
+      "is_closest_to_the_ray",
+      "kick_speed_mps",
+      "passer_speed_mps"
+    ],
+    "feature_note": "Every feature is relative to the ball and to the aim, so the table reads the same whichever way the team attacks. A test asserts the table is unchanged under the 180 degree turn.",
+    "coverage": {
+      "passes_with_intent": 2872,
+      "with_recipient_in_candidates": 2515,
+      "skipped_without_label": 357,
+      "successful_labelled": 2515,
+      "failed_without_label": 243,
+      "training_retention_of_successful_passes": 0.876
+    },
+    "headline": {
+      "val": {
+        "n": 432,
+        "rule_top1": 0.7755,
+        "linear_top1": 0.8426,
+        "mlp_top1": 0.8472
+      },
+      "test": {
+        "n": 377,
+        "rule_top1": 0.7878,
+        "linear_top1": 0.8966,
+        "mlp_top1": 0.9045
+      }
+    },
+    "leave_one_match_out": {
+      "rule": {
+        "J03WMX": 0.8242,
+        "J03WN1": 0.7812,
+        "J03WOH": 0.8436,
+        "J03WOY": 0.7686,
+        "J03WPY": 0.7825,
+        "J03WQQ": 0.7755,
+        "J03WR9": 0.7878
+      },
+      "linear": {
+        "J03WMX": 0.9002,
+        "J03WN1": 0.8304,
+        "J03WOH": 0.9091,
+        "J03WOY": 0.8099,
+        "J03WPY": 0.8416,
+        "J03WQQ": 0.8426,
+        "J03WR9": 0.8966
+      },
+      "mlp": {
+        "J03WMX": 0.8836,
+        "J03WN1": 0.8348,
+        "J03WOH": 0.9127,
+        "J03WOY": 0.8375,
+        "J03WPY": 0.8913,
+        "J03WQQ": 0.8773,
+        "J03WR9": 0.8966
+      },
+      "folds_where_the_model_beats_the_rule": {
+        "linear": "7/7",
+        "mlp": "7/7"
+      }
+    },
+    "where_the_model_differs_from_the_rule": {
+      "held_out_successful_passes": {
+        "n": 809,
+        "linear": {
+          "same_pick": 0.852,
+          "model_pick_perp_to_ray_m": 3.99,
+          "rule_pick_perp_to_ray_m": 1.54,
+          "model_pick_nearest_defender_m": 7.31,
+          "rule_pick_nearest_defender_m": 5.77
+        },
+        "mlp": {
+          "same_pick": 0.764,
+          "model_pick_perp_to_ray_m": 5.52,
+          "rule_pick_perp_to_ray_m": 2.19,
+          "model_pick_nearest_defender_m": 7.64,
+          "rule_pick_nearest_defender_m": 5.03
+        }
+      },
+      "failed_passes": {
+        "n": 243,
+        "linear": {
+          "same_pick": 0.835,
+          "model_pick_perp_to_ray_m": 5.15,
+          "rule_pick_perp_to_ray_m": 2.58
+        },
+        "mlp": {
+          "same_pick": 0.617,
+          "model_pick_perp_to_ray_m": 8.04,
+          "rule_pick_perp_to_ray_m": 2.57
+        }
+      }
+    },
+    "linear_weights_note": "The linear weights are on standardised features. The strongest are along_over_distance and perp_m, so the rule's own signal is still in the model; nearest_defender_to_candidate_m is positive, so a teammate with a defender further away scores higher.",
+    "local_artifacts": "outputs/pass_intent_model/"
+  },
+  "next": "下一步用这个模型重做传球成功率的终点，看它有没有害处：如果模型的终点在失败球上是错的，人工空间特征（最近防守者到终点的距离、传球路线上的防守者）会开始和标签反向相关，因为标签会变成「球没到我挑的那个人那里」而那个人其实很开阔。反过来，如果空间特征仍然改善排序，说明终点没有坏掉，可以把终点换成模型。两种终点都跑一遍再决定，不要只看成功球上的准确率。"
+}

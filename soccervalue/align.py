@@ -176,6 +176,7 @@ def orient_samples(samples: list[dict], transform: str, pitch_x: float, pitch_y:
                 "intent_perp_m": intent.get("perp_m"),
                 "intent_along_m": intent.get("along_m"),
                 "intent_status": intent.get("status"),
+                "intent_candidates": intent.get("candidates") or [],
                 "annotated_xy": annotated_xy,
             }
         )

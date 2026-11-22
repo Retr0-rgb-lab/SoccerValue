@@ -27,7 +27,7 @@ def attach_tracking(tracking_path: Path, passes: list[dict], pitch: tuple[float,
     ball_times = [item[0] for item in ball]
     player_times = {person: [item[0] for item in rows] for person, rows in players.items()}
     pitch_x, pitch_y = pitch
-    tracker = IntentTracker(ball, pitch_x, pitch_y)
+    tracker = IntentTracker(ball, pitch_x, pitch_y, players)
     for item in passes:
         target = item["time"].timestamp()
         chosen = _best_frame(item, target, ball, ball_times, players, player_times, pitch_x, pitch_y)

@@ -5,6 +5,7 @@ Pass-success models. Recording a finished round and pushing it are root rules in
 ## Always
 
 - The destination of a pass is the teammate the passer aimed at, read from the kick by `soccervalue/intent.py`. Do not score at the point the event file gives: on an unsuccessful pass that point is the opponent's next action, and the endpoint then carries the outcome. `results/pass-intent/conclusion.json` has the numbers for both endpoints on the same passes.
+- The geometric rule in `soccervalue/intent.py` stays the endpoint estimator. A trained aimed-receiver model beats it on successful passes, 7 of 7 leave-one-match-out folds, but the extra wins come from preferring the more open teammate, and on the failed passes, where the endpoint has to be right, that preference is untested. Do not swap the endpoint for the model before a round has measured it downstream. `results/pass-intent-model/conclusion.json` has the numbers.
 - Model B, logistic regression on pass geometry plus a few hand-built spatial features, is the baseline. On the intent endpoint it beats plain geometry on validation and test, and on 7 of 7 leave-one-match-out folds. The first round's larger margin came from an endpoint that carried the result and is not comparable.
 - The raster CNN still does not beat Model B. On the intent endpoint it is close (test AUROC 0.805 against 0.818). Do not add layers to it on the strength of the first round.
 - The match split is fixed in `soccervalue/matches.py`. Do not retune it from test scores.
