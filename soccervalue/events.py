@@ -49,6 +49,7 @@ def load_open_flat_passes(events_path: Path, match_id: str) -> list[dict]:
         is_pass = play is not None and play.find("./Pass") is not None
         start = _coords(elem, source=True) or _coords(elem, source=False)
         end_on_event = _coords(elem, source=False)
+        own_team, own_player = _own_side(elem, play)
         record = {
             "time": when,
             "event_id": elem.get("EventId"),
@@ -56,6 +57,8 @@ def load_open_flat_passes(events_path: Path, match_id: str) -> list[dict]:
             "is_pass": is_pass and direct_tag not in SET_PIECES,
             "team_id": play.get("Team") if play is not None else None,
             "player_id": play.get("Player") if play is not None else None,
+            "own_team_id": own_team,
+            "own_player_id": own_player,
             "recipient": play.get("Recipient") if play is not None else None,
             "from_open_play": play.get("FromOpenPlay") if play is not None else None,
             "height": play.get("Height") if play is not None else None,
@@ -114,6 +117,7 @@ def load_open_flat_passes(events_path: Path, match_id: str) -> list[dict]:
                 "time": record["time"],
                 "team_id": record["team_id"],
                 "player_id": record["player_id"],
+                "recipient": record["recipient"],
                 "start_x": start[0],
                 "start_y": start[1],
                 "end_x": end[0],
@@ -194,13 +198,37 @@ def _next_record(raw: list[dict], index: int, when: datetime) -> dict | None:
 
 
 def _next_relation(record: dict, nxt: dict) -> str:
-    if nxt.get("player_id") and nxt["player_id"] == record.get("recipient"):
+    """Who made the next event: the named recipient, a teammate, or an opponent.
+
+    The team of the next event is read from the tag that owns it. A tackle names
+    its winner, a loose ball names its team. Reading the team only from `Play`
+    left every tackle and clearance in the unknown bucket, which understated how
+    often a borrowed end sits with the opponent.
+    """
+    if nxt.get("own_player_id") and nxt["own_player_id"] == record.get("recipient"):
         return "recipient"
-    if nxt.get("team_id") and record.get("team_id") and nxt["team_id"] == record["team_id"]:
-        return "teammate"
-    if nxt.get("team_id") and record.get("team_id") and nxt["team_id"] != record["team_id"]:
+    next_team = nxt.get("own_team_id")
+    if next_team and record.get("team_id"):
+        if next_team == record["team_id"]:
+            return "teammate"
         return "opponent"
     return "unknown"
+
+
+def _own_side(elem: etree._Element, play: etree._Element | None) -> tuple[str | None, str | None]:
+    """The team and player the event belongs to, whatever tag carries it."""
+    if play is not None:
+        return play.get("Team"), play.get("Player")
+    tackle = elem.find("./TacklingGame")
+    if tackle is not None:
+        return tackle.get("WinnerTeam"), tackle.get("Winner")
+    other = elem.find("./OtherBallAction")
+    if other is not None:
+        return other.get("Team"), other.get("Player")
+    shot = elem.find("./ShotAtGoal")
+    if shot is not None:
+        return shot.get("Team"), shot.get("Player")
+    return None, None
 
 
 def _team_left_at(markers: list[tuple[datetime, str]], when: datetime) -> str | None:

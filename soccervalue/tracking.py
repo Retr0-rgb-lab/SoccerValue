@@ -9,6 +9,7 @@ from pathlib import Path
 from lxml import etree
 
 from soccervalue.align import SYNC_WINDOW_S, TRACKING_TO_EVENT, convert, frame_cost
+from soccervalue.intent import IntentTracker
 
 
 def attach_tracking(tracking_path: Path, passes: list[dict], pitch: tuple[float, float]) -> None:
@@ -16,6 +17,9 @@ def attach_tracking(tracking_path: Path, passes: list[dict], pitch: tuple[float,
 
     DFL event timestamps are not the optical kick instant. The dataset paper
     measured an average 9 m gap until each event is moved to a nearby frame.
+
+    The same pass also gets an `intent` entry: the teammate the passer aimed
+    at, read from the kick rather than from the recorded result.
     """
     if not passes:
         return
@@ -23,6 +27,7 @@ def attach_tracking(tracking_path: Path, passes: list[dict], pitch: tuple[float,
     ball_times = [item[0] for item in ball]
     player_times = {person: [item[0] for item in rows] for person, rows in players.items()}
     pitch_x, pitch_y = pitch
+    tracker = IntentTracker(ball, pitch_x, pitch_y)
     for item in passes:
         target = item["time"].timestamp()
         chosen = _best_frame(item, target, ball, ball_times, players, player_times, pitch_x, pitch_y)
@@ -33,6 +38,7 @@ def attach_tracking(tracking_path: Path, passes: list[dict], pitch: tuple[float,
         item["track_players"] = chosen["players"]
         item["frame_dt"] = chosen["dt"]
         item["frame_signed_dt"] = chosen["signed_dt"]
+        item["intent"] = tracker.estimate(item, chosen["index"], chosen["players"])
 
 
 def _read_trajectories(path: Path) -> tuple[list[tuple[float, float, float]], dict]:
@@ -69,6 +75,7 @@ def _best_frame(item, target, ball, ball_times, players, player_times, pitch_x, 
     passer_rows = players.get(item["player_id"], [])
     passer_times = player_times.get(item["player_id"], [])
     best = None
+    best_index = None
     best_cost = float("inf")
     for index in range(start, stop):
         stamp, x, y = ball[index]
@@ -85,6 +92,7 @@ def _best_frame(item, target, ball, ball_times, players, player_times, pitch_x, 
         if cost < best_cost:
             best_cost = cost
             best = (stamp, x, y)
+            best_index = index
     if best is None:
         return None
     stamp, x, y = best
@@ -100,6 +108,7 @@ def _best_frame(item, target, ball, ball_times, players, player_times, pitch_x, 
         "players": snapshot,
         "dt": abs(stamp - target),
         "signed_dt": stamp - target,
+        "index": best_index,
     }
 
 

@@ -105,8 +105,13 @@ def _fraction_over(values: list[float], limit: float) -> float | None:
     return sum(value > limit for value in values) / len(values)
 
 
-def orient_samples(samples: list[dict], transform: str, pitch_x: float, pitch_y: float) -> list[dict]:
-    """Return model rows in a frame where the passing team attacks toward +x."""
+def orient_samples(samples: list[dict], transform: str, pitch_x: float, pitch_y: float, end_mode: str = "recorded") -> list[dict]:
+    """Return model rows in a frame where the passing team attacks toward +x.
+
+    `end_mode` is "recorded" for the point the event file gives, or "intent" for
+    the teammate the passer aimed at. Both rows carry the recorded point as well,
+    so the two arms can be compared on the same passes.
+    """
     rows = []
     for sample in samples:
         ball = sample.get("track_ball")
@@ -125,7 +130,20 @@ def orient_samples(samples: list[dict], transform: str, pitch_x: float, pitch_y:
         attack_positive = sample["team_id"] == sample["team_left"]
         ball_xy = _orient(convert(transform, ball[0], ball[1], pitch_x, pitch_y), pitch_x, pitch_y, attack_positive)
         start = _orient((sample["start_x"], sample["start_y"]), pitch_x, pitch_y, attack_positive)
-        end = _orient((sample["end_x"], sample["end_y"]), pitch_x, pitch_y, attack_positive)
+        recorded_end = _orient((sample["end_x"], sample["end_y"]), pitch_x, pitch_y, attack_positive)
+        intent = sample.get("intent") or {}
+        if end_mode == "intent":
+            if intent.get("status") != "ok":
+                continue
+            end = _orient((intent["target_x"], intent["target_y"]), pitch_x, pitch_y, attack_positive)
+            end_source = "intent"
+        else:
+            end = recorded_end
+            end_source = sample.get("end_source")
+        if intent.get("annotated_x") is not None:
+            annotated_xy = _orient((intent["annotated_x"], intent["annotated_y"]), pitch_x, pitch_y, attack_positive)
+        else:
+            annotated_xy = None
         attack = []
         defense = []
         for _person, (x, y, team) in players.items():
@@ -141,16 +159,24 @@ def orient_samples(samples: list[dict], transform: str, pitch_x: float, pitch_y:
                 "success": sample["success"],
                 "start": start,
                 "end": end,
+                "recorded_end": recorded_end,
                 "ball": ball_xy,
                 "attack": attack,
                 "defense": defense,
                 "pitch": (pitch_x, pitch_y),
-                "end_source": sample.get("end_source"),
+                "end_source": end_source,
+                "recorded_end_source": sample.get("end_source"),
+                "recipient": sample.get("recipient"),
                 "next_event_relation": sample.get("next_event_relation"),
                 "next_event_tag": sample.get("next_event_tag"),
                 "end_gap_s": sample.get("end_gap_s"),
                 "frame_signed_dt": sample.get("frame_signed_dt"),
                 "ball_event_m": ball_event_m,
+                "intent_player": intent.get("player"),
+                "intent_perp_m": intent.get("perp_m"),
+                "intent_along_m": intent.get("along_m"),
+                "intent_status": intent.get("status"),
+                "annotated_xy": annotated_xy,
             }
         )
     return rows

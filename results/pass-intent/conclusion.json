@@ -1,0 +1,85 @@
+{
+  "round": "pass-intent",
+  "conclusions": [
+    "传球者的意图目标可以从追踪里读出来，不用事件标注。规则是：出脚之后的球速方向给出一条射线，同队、位于球前方、且到射线垂直距离最近的球员就是被瞄准的人。",
+    "在成功球上，这个目标和事件标注的接球人一致率 76.0%（n=2625），逐场 73.0% 到 81.1%。在失败球上一致率是 0.0%（n=233），因为失败球的标注接球人其实是拦截者，不是瞄的人。两条合起来说明读的是「瞄向哪里」，不是「球最后去了哪里」。",
+    "换成意图终点之后，人工空间特征仍然优于纯传球几何：验证场 Brier 0.0777 对 0.0842，测试场 0.0478 对 0.0508，七场轮流留出 7 场全部变好。预先规定的通过线是验证场和测试场都更低且至少 5 场留出变好，这一轮通过。第一轮那条「人工空间特征优于几何」的结论在干净终点上站得住。",
+    "但第一轮的终点确实带着结果。终点来自事件自带坐标的传球失败率是 23.5%，来自下一事件的是 3.9%；同一批传球上，记录终点的空间模型测试 AUROC 0.856，高于意图终点的 0.818。第一轮的数字有一部分来自一个「看了结果才选的点」，这一轮的数字才是诚实的。",
+    "栅格 CNN 在意图终点上追近了但仍然没有超过人工空间特征：测试 AUROC 0.805 对 0.818，差距 0.012；记录终点臂里这个差距是 0.086。仍然不要加深 CNN，但也不该再说栅格完全用不上站位。",
+    "覆盖率：3481 脚开放进攻地滚球里 2959 脚（85.0%）能读出意图目标；丢掉的原因是没找到出脚 332、没有速度突变 100、射线上没有合格队友 90。对齐过滤后进入模型的传球是 2872 脚。",
+    "这一轮没有推荐任何未执行的传球。终点不再来自结果，是必要条件，但不是充分条件：模型仍然条件于这一脚记录在案的传球几何与执行。"
+  ],
+  "decision": {
+    "spatial": "go",
+    "raster": "no",
+    "endpoint": "intent",
+    "recommend_unexecuted_passes": "no"
+  },
+  "rule": {
+    "leak": "The scored endpoint must stop sitting on the result: on successes it may sit on the receiver, on failures it must be far from the interceptor.",
+    "spatial": "GO only if the spatial model has a lower Brier than geometry on validation and test, and at least 5 of 7 leave-one-match-out folds improve.",
+    "raster": "Reported, not gated. No extra layers either way."
+  },
+  "support": {
+    "endpoint": "the teammate with the smallest perpendicular distance to the post-kick ball ray, among teammates ahead of the ball",
+    "arms": "both arms fitted on the same 2872 passes: train 1949, val 505, test 418",
+    "intent_agreement_with_annotated_recipient": {
+      "success": 0.76,
+      "failure": 0.0,
+      "per_match_success": {
+        "J03WMX": 0.796,
+        "J03WN1": 0.738,
+        "J03WOH": 0.811,
+        "J03WOY": 0.73,
+        "J03WPY": 0.757,
+        "J03WQQ": 0.74,
+        "J03WR9": 0.754
+      }
+    },
+    "scored_endpoint_distance_to_where_the_ball_ended_up": {
+      "recorded_arm": {
+        "success_median_m": 6.55,
+        "failure_median_m": 8.03
+      },
+      "intent_arm": {
+        "success_median_m": 0.0,
+        "success_within_3m": 0.762,
+        "failure_median_m": 9.89,
+        "failure_within_3m": 0.094
+      }
+    },
+    "failure_rate_by_recorded_endpoint_source_test": {
+      "event": 0.235,
+      "next_event": 0.039
+    },
+    "intent_arm_val": {
+      "constant": {"brier": 0.09099, "auroc": 0.5},
+      "geometry": {"brier": 0.08182, "auroc": 0.7994},
+      "geometry_spatial": {"brier": 0.0777, "auroc": 0.8514},
+      "position_raster": {"brier": 0.07929, "auroc": 0.8228}
+    },
+    "intent_arm_test": {
+      "constant": {"brier": 0.053, "auroc": 0.5},
+      "geometry": {"brier": 0.05079, "auroc": 0.7527},
+      "geometry_spatial": {"brier": 0.04781, "auroc": 0.818},
+      "position_raster": {"brier": 0.04855, "auroc": 0.805}
+    },
+    "recorded_arm_test": {
+      "geometry": {"brier": 0.04977, "auroc": 0.7934},
+      "geometry_spatial": {"brier": 0.04873, "auroc": 0.8559},
+      "position_raster": {"brier": 0.05215, "auroc": 0.7693}
+    },
+    "leave_one_match_out_spatial_better_than_geometry": {
+      "intent_arm": "7/7",
+      "recorded_arm": "7/7"
+    },
+    "intent_coverage": {
+      "parsed": 3481,
+      "with_intent": 2959,
+      "status_counts": {"ok": 2959, "no_kick": 332, "slow_ball": 100, "no_candidate": 90},
+      "rows_after_alignment": 2872
+    },
+    "local_artifacts": "outputs/pass_intent/"
+  },
+  "next": "意图目标有 76% 的准确率，不是精确值。下一轮如果要更准，是训练一个意图接球人模型：监督信号只能用成功球的标注接球人（3481 脚里 3158 脚成功，91%），失败球靠迁移应用，训练时必须报告样本保留率。几何规则继续当基线。在意图终点固定下来之前，不要再往传球成功率上叠网络。"
+}
