@@ -148,6 +148,7 @@ def build_segments(ball, players: dict, pitch: tuple[float, float], t_start: flo
                 "roster": roster,
                 "players": player_future,
                 "toucher": toucher,
+                "start_index": start,
             }
         )
     return segments

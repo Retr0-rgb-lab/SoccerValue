@@ -1,0 +1,122 @@
+{
+  "round": "pass-value",
+  "conclusions": [
+    "链条接上了。世界模型给出的后继局面，它的价值和真实后继局面的价值相差 0.0080（测试场），而传球前的局面和真实后继局面相差 0.0197，差 2.5 倍。价值变化的方向在七场里全部一致，每场 0.873 到 0.947。预先规定的链条判据通过。",
+    "但传球之后的绝对价值分不开成功与失败，这是预先规定的价值判据没有通过的地方。测试场成功球 +0.0281 对失败球 +0.0280，验证场甚至是负的（−0.0185），七场里只有 3 场方向为正。",
+    "原因定位到了价值模型的系数上：代表本方射门的那个头，控球标志的系数是 +0.492，是它最强的特征；而代表对方射门的那个头，控球标志的系数只有 −0.119。模型学会了「球在我脚下我可能射门」，没有学会「球在对方脚下对方可能射门」。",
+    "这一点的后果在两头分开看得很清楚：一脚失败的传球，本方射门概率下降 0.024（对），对方射门概率只上升 0.0006（几乎没有）。所以失败之后局面的绝对价值没有掉下去。",
+    "绝对价值之所以还反过来，是因为失败球的球位恰好更好：拦截多发生在危险区域，把控球标志固定住以后，失败球的球位价值反而高 0.042。控球的负效应 −0.047 和位置的正效应 +0.042 几乎抵消。",
+    "换一个量就分得开：价值变化 ΔV = V(之后) − V(之前)。成功球 ΔV 约 −0.002，失败球约 −0.024，差 0.022 到 0.029，七场里 7 场方向为正。含义是：一脚成功的传球基本不改变局面价值（球还在自己脚下，位置质量差不多），一脚失败的传球大约值 −0.024。",
+    "所以给候选传球打分应该用 ΔV，而不是绝对 V。这是这一轮能给出的第一条可执行结论。",
+    "模拟后继的价值虽然接近真实后继，但它的 ΔV 分离不稳：七场里有两场是反的。所以现在只能用真实后继局面的 ΔV，不能用模拟的 ΔV 去排序传球。",
+    "一个数据问题：249 脚失败球里有 95 脚（38.2%）在飞行段结束时的下一个触球者仍然是本方队友。要么 Sportec 的 unsuccessful 标注和物理事实不一致，要么这类球的意图终点本身就不可靠。这 38% 会稀释 ΔV 的分离度。",
+    "这一轮仍然没有推荐任何未执行的传球。ΔV 是回顾性的：它描述的是已经发生的那一脚改变了多少价值，不是另一脚没传的传球会怎么样。"
+  ],
+  "decision": {
+    "chain": "go",
+    "absolute_value_separation": "stop",
+    "score_passes_with_the_value_change": "go",
+    "use_simulated_successors_for_scoring": "no",
+    "recommend_unexecuted_passes": "no"
+  },
+  "rule": {
+    "chain": "The value of the simulated successor state must be closer to the value of the recorded successor state than the value of the pre-pass state is, on the test match. The sign of the value change must agree between the two in at least 6 of the 7 matches.",
+    "value": "The value after a successful pass must be higher than the value after a failed pass, on the test match and in at least 6 of the 7 matches.",
+    "report": "How much of that separation survives with the possession flag held fixed is reported either way.",
+    "verdict": "The chain rule passed on both counts. The value rule failed: the gap is near zero on the test match and negative on the validation match, with 3 of 7 matches positive. The value model does not drop the value of a state where the opponent has the ball, because the against head has almost no weight on possession."
+  },
+  "support": {
+    "links": {
+      "passes": 3481,
+      "linked_to_a_ground_ball_segment": 2953,
+      "by_split": {"train": 2015, "val": 509, "test": 429},
+      "drag_per_second": 0.3,
+      "touch_rank_segments": 6656,
+      "touch_top1_on_the_linked_passes": 0.755,
+      "simulated_possession_agrees_with_the_recorded_one": 0.91,
+      "mean_ball_position_error_at_the_end_of_the_flight_m": {"train": 2.68, "val": 2.7, "test": 2.39}
+    },
+    "chain": {
+      "train": {"n": 2015, "mae_simulated_vs_recorded": 0.00774, "mae_prepass_vs_recorded": 0.02145},
+      "val": {"n": 509, "mae_simulated_vs_recorded": 0.0086, "mae_prepass_vs_recorded": 0.02154},
+      "test": {"n": 429, "mae_simulated_vs_recorded": 0.00802, "mae_prepass_vs_recorded": 0.01971},
+      "sign_agreement_of_the_value_change_per_match": {
+        "J03WMX": 0.911,
+        "J03WN1": 0.873,
+        "J03WOH": 0.893,
+        "J03WOY": 0.947,
+        "J03WPY": 0.938,
+        "J03WQQ": 0.9,
+        "J03WR9": 0.935
+      }
+    },
+    "absolute_value_separation": {
+      "train": {"success": 0.02801, "failure": 0.03426, "gap": -0.00625},
+      "val": {"success": 0.02791, "failure": 0.04645, "gap": -0.01853},
+      "test": {"success": 0.02813, "failure": 0.02804, "gap": 0.00009},
+      "matches_with_a_positive_gap": "3/7"
+    },
+    "value_change_separation": {
+      "train": {"success": -0.00253, "failure": -0.02666, "gap": 0.02413},
+      "val": {"success": 0.00108, "failure": -0.02544, "gap": 0.02651},
+      "test": {"success": -0.00247, "failure": -0.02448, "gap": 0.02202},
+      "matches_with_a_positive_gap": "7/7",
+      "per_match_gap": {
+        "J03WMX": 0.00902,
+        "J03WN1": 0.00992,
+        "J03WOH": 0.02947,
+        "J03WOY": 0.02859,
+        "J03WPY": 0.0579,
+        "J03WQQ": 0.02651,
+        "J03WR9": 0.02202
+      }
+    },
+    "value_model_coefficients": {
+      "note": "On standardised features. The for head is the chance that the evaluated team shoots; the against head is the chance that the other team shoots.",
+      "for": {
+        "ball_x_over_pitch_x": 0.441,
+        "ball_y_over_pitch_y": -0.188,
+        "distance_to_opponent_goal_over_pitch_x": -0.441,
+        "possession_by_t": 0.492
+      },
+      "against": {
+        "ball_x_over_pitch_x": -0.209,
+        "ball_y_over_pitch_y": 0.183,
+        "distance_to_opponent_goal_over_pitch_x": 0.209,
+        "possession_by_t": -0.119
+      }
+    },
+    "head_decomposition": {
+      "test": {
+        "p_for_change_success": -0.00189,
+        "p_against_change_success": 0.00058,
+        "p_for_change_failure": -0.02359,
+        "p_against_change_failure": 0.00089
+      },
+      "note": "A failed pass lowers the chance that the evaluated team shoots, and barely raises the chance that the opponent shoots."
+    },
+    "why_the_absolute_value_cancels": {
+      "test": {
+        "possession_effect_on_value_failure": -0.04726,
+        "position_only_gap": -0.04222
+      },
+      "note": "The possession penalty and the better interception positions cancel, so the two states end up with the same absolute value."
+    },
+    "simulated_value_change_separation_per_match": {
+      "J03WMX": 0.0025,
+      "J03WN1": -0.0088,
+      "J03WOH": 0.019,
+      "J03WOY": 0.0104,
+      "J03WPY": 0.0378,
+      "J03WQQ": 0.0013,
+      "J03WR9": -0.0098
+    },
+    "label_against_physics": {
+      "failed_passes": 249,
+      "failed_passes_whose_next_touch_is_still_a_teammate": 95,
+      "fraction": 0.382
+    },
+    "local_artifacts": "outputs/pass_value/"
+  },
+  "next": "瓶颈已经定位在价值模型自己身上：代表对方射门的那个头几乎不看控球（−0.119，对面本方头是 +0.492）。下一轮就修这一件事——让两个头对称地看控球，或者直接按谁控球分开拟合两个头，然后检查传球之后的绝对价值能不能分开。如果能分开，候选传球打分就可以用绝对 V；如果仍然分不开，就继续用 ΔV，但必须把对方控球这一项手工补进去。另外那 38% 的失败球（下一触球者仍是本方队友）要单独查一次：要么标注和物理不一致，要么这类球的意图终点不可靠，两种情况对失败类的处理方式完全不同。"
+}

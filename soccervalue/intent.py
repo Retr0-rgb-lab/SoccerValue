@@ -99,6 +99,7 @@ class IntentTracker:
             [convert(TRACKING_TO_EVENT, row[1], row[2], pitch_x, pitch_y) for row in ball],
             dtype=np.float64,
         )
+        self.raw = np.asarray([[row[1], row[2]] for row in ball], dtype=np.float64)
         self.times = np.asarray([row[0] for row in ball], dtype=np.float64)
         if len(self.times) > 1:
             self.velocity = np.diff(self.points, axis=0) / np.diff(self.times)[:, None]
@@ -143,6 +144,8 @@ class IntentTracker:
             "kick_index": None,
             "annotated_x": None,
             "annotated_y": None,
+            "ball_x": None,
+            "ball_y": None,
             "candidates": [],
         }
         if frame_index is None:
@@ -158,6 +161,8 @@ class IntentTracker:
             return result
 
         ball_point = self.points[frame_index]
+        result["ball_x"] = float(self.raw[frame_index][0])
+        result["ball_y"] = float(self.raw[frame_index][1])
         passer = snapshot.get(item.get("player_id"))
         if passer is None:
             result["status"] = "no_candidate"

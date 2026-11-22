@@ -12,7 +12,12 @@ from soccervalue.align import SYNC_WINDOW_S, TRACKING_TO_EVENT, convert, frame_c
 from soccervalue.intent import IntentTracker
 
 
-def attach_tracking(tracking_path: Path, passes: list[dict], pitch: tuple[float, float]) -> None:
+def attach_tracking(
+    tracking_path: Path,
+    passes: list[dict],
+    pitch: tuple[float, float],
+    trajectories: tuple | None = None,
+) -> None:
     """Store the tracking frame inside a few seconds that best matches each pass.
 
     DFL event timestamps are not the optical kick instant. The dataset paper
@@ -23,7 +28,10 @@ def attach_tracking(tracking_path: Path, passes: list[dict], pitch: tuple[float,
     """
     if not passes:
         return
-    ball, players = _read_trajectories(tracking_path)
+    if trajectories is None:
+        ball, players = _read_trajectories(tracking_path)
+    else:
+        ball, players = trajectories
     ball_times = [item[0] for item in ball]
     player_times = {person: [item[0] for item in rows] for person, rows in players.items()}
     pitch_x, pitch_y = pitch
