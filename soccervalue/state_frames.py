@@ -62,6 +62,10 @@ def orient_state(sample: dict, transform: str, pitch_x: float, pitch_y: float) -
         "possession_by_t": sample["possession_by_t"],
         "y_for": sample["y_for"],
         "y_against": sample["y_against"],
+        "xg_for_sum": sample.get("xg_for_sum", 0.0),
+        "xg_against_sum": sample.get("xg_against_sum", 0.0),
+        "xg_for_product": sample.get("xg_for_product", 0.0),
+        "xg_against_product": sample.get("xg_against_product", 0.0),
         "pitch": (pitch_x, pitch_y),
         "shots_in_window": sample.get("shots_in_window") or [],
     }

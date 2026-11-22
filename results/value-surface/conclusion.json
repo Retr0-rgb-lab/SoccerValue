@@ -1,0 +1,106 @@
+{
+  "round": "value-surface",
+  "conclusions": [
+    "位置价值面建起来了，而且用户那个「越靠中间越值钱」的直觉在留出比赛上被证实：在测试场的八个区里，中央带在全部四个纵深带都比边路带值钱。进攻三区中央 0.0395 对边路 0.0026，差十五倍；禁区中央 0.0212 对边路 0.0056，差 3.8 倍。差距随接近球门而变大，这正是「同样的向前距离，越靠中间越值钱」。",
+    "这个面是项目里第一个不看结果的价值信号。它的价值变化 ΔV = V(目标区) − V(起点区) 在七场留一比赛里全部为正，而且三个划分的差距几乎一样（训练 +0.0046、验证 +0.0040、测试 +0.0040），没有上一轮那种符号在划分间翻转的情况。它只由球的位置和谁控球决定，因此可以给没有发生过的传球打分。",
+    "但它比现在的射门标签状态模型弱很多：同一批传球上，位置面的 ΔV 差距是 0.0040，状态模型是 0.0220，差五倍多。原因是状态模型还看得到终点上是谁控球（对手控球的终点价值掉下去），位置面只看位置。所以位置面不能替代状态模型的回顾性打分，它是补上去的前瞻性那一半。",
+    "密标签没有解决对方那一头的问题。换成窗口 xG 之后，本方那一头稳了（三个划分效应全为正：+0.0051、+0.0018、+0.0017），对方那一头仍然是训练 +0.0003、验证 +0.0011、测试 −0.0012，方向不一致。对方有射门的窗口在三个划分里分别只有 54、11、11 个。这不是标签稀不稀的问题，是事件总数的问题：七场一共 164 次射门，对方那侧再切两半就只剩个位数。",
+    "深度单调性只在边路成立：边路从自家三区 −0.0020 到禁区 0.0317 单调上升；中央带在禁区反而比进攻三区低（0.0212 对 0.0395），样本内也是如此。测试场禁区中央只有 9 个状态，这个格子估不准。",
+    "这一轮没有把位置面接进传球成功率模型，也没有推荐任何未执行的传球。位置面现在的定位是：第一个可以给未执行候选传球打分、且不依赖结果的价值组件。"
+  ],
+  "decision": {
+    "surface_built": true,
+    "centre_beats_wide_out_of_sample": true,
+    "delta_separation": "7/7 matches, consistent across the three splits",
+    "identifiability_of_the_against_side": "fail, the dense label did not fix it",
+    "surface_replaces_the_state_model": "no, the state model is five times stronger on the same passes",
+    "surface_usable_for_candidate_passes": "yes, it is the first outcome-free value signal",
+    "recommend_unexecuted_passes": "no"
+  },
+  "rule": {
+    "identifiability": "The opponent-side relation must have the same sign in all three splits.",
+    "shape": "The surface must be monotone in depth on the held-out match, and the centre band must beat the wide band inside the attacking third.",
+    "delta": "The surface's value change must separate a successful pass from a failed one in at least 6 of the 7 matches, and it must not be worse than the shot-based value model on the same passes.",
+    "candidate": "The surface must be evaluable at zones where no pass was ever recorded.",
+    "verdict": "The shape rule passed on its lateral half and failed on its depth half: the centre band beats the wide band in all four depth bands on the held-out match, but depth is monotone only for the wide band. The delta rule passed, 7 of 7 matches, though the surface's gap is a fifth of the state model's. The candidate rule passed. The identifiability rule failed for the opponent side for the second time, now with a graded label."
+  },
+  "support": {
+    "label": {
+      "what": "The window now carries the xG of the shots inside it, not only whether a shot happened. The dataset annotates all 164 shots with their own xG, so no extra model was needed.",
+      "forms": "Both the sum of the xG in the window and the un-xPass probability 1 - prod(1 - xG) are stored.",
+      "shot_events_in_the_project": 164
+    },
+    "zones": {
+      "count": 8,
+      "scheme": "four bands along the length, cut at the thirds and at the edge of the penalty area, times two across it, where the middle third of the width is the two half spaces",
+      "why": "The published error law for a surface of this kind, roughly 0.1235 * M^1.01 / (sqrt(N))^1.0267, puts this project at about eight zones with the 2920 successful moves in the training split. A 16 by 12 grid would need about 3.35 million training points, some 5.4 Premier League seasons."
+    },
+    "identifiability": {
+      "for_side": {
+        "train": 0.00512,
+        "val": 0.00183,
+        "test": 0.00167,
+        "agreement": "same direction in 3/3 splits"
+      },
+      "against_side": {
+        "train": 0.00031,
+        "val": 0.00112,
+        "test": -0.00119,
+        "agreement": "directions disagree, 2 of 3 positive",
+        "windows_with_an_opponent_shot": {"train": 54, "val": 11, "test": 11}
+      }
+    },
+    "shape_on_the_held_out_match": {
+      "own_third_wide": -0.0033,
+      "own_third_centre": -0.00129,
+      "middle_third_wide": -0.00006,
+      "middle_third_centre": 0.00081,
+      "attacking_third_wide": 0.00258,
+      "attacking_third_centre": 0.03952,
+      "opponent_box_wide": 0.00558,
+      "opponent_box_centre": 0.02119,
+      "reading": "The centre band beats the wide band in all four depth bands. The gap grows towards the goal: 0.0020 at the own third, 0.0009 in the middle, 0.0369 in the attacking third and 0.0156 in the box."
+    },
+    "shape_fitted_on_the_training_split": {
+      "own_third_wide": -0.00204,
+      "own_third_centre": -0.00183,
+      "middle_third_wide": 0.00293,
+      "middle_third_centre": 0.00576,
+      "attacking_third_wide": 0.01466,
+      "attacking_third_centre": 0.03085,
+      "opponent_box_wide": 0.03165,
+      "opponent_box_centre": 0.02221
+    },
+    "value_change_on_the_same_passes": {
+      "surface": {
+        "train": {"success": -0.00046, "failure": -0.00507, "gap": 0.0046},
+        "val": {"success": -0.00016, "failure": -0.00412, "gap": 0.00396},
+        "test": {"success": -0.00015, "failure": -0.00413, "gap": 0.00398},
+        "matches_positive": "7/7"
+      },
+      "shot_based_state_model": {
+        "train": {"success": -0.00253, "failure": -0.02666, "gap": 0.02413},
+        "val": {"success": 0.00108, "failure": -0.02544, "gap": 0.02651},
+        "test": {"success": -0.00247, "failure": -0.02448, "gap": 0.02202},
+        "matches_positive": "7/7"
+      },
+      "surface_per_match_gap": {
+        "J03WMX": 0.00377,
+        "J03WN1": 0.00215,
+        "J03WOH": 0.00728,
+        "J03WOY": 0.00392,
+        "J03WPY": 0.00786,
+        "J03WQQ": 0.00396,
+        "J03WR9": 0.00398
+      }
+    },
+    "candidate_interface": {
+      "zones": 8,
+      "cells": 16,
+      "recorded_pass_endpoints": 2761,
+      "note": "The surface answers for any zone and either holder, so a pass that was never played can be valued from it."
+    },
+    "local_artifacts": "outputs/value_surface/"
+  },
+  "next": "位置面是前瞻性的那一半已经补上了，但它的量级只有状态模型的五分之一，差在它看不见终点上是谁控球。下一轮应该把两件事分开量：第一，用位置面给未执行的候选传球打分（候选点取队友位置，用 intent.py 的意图估计），看它的排序和传球成功率模型的排序是否一致，这是位置面有没有用的直接检验；第二，把用户提的防线结构加进去，做「相对位置面」——同一个绝对位置但对方防线不同时给出不同的值，以及越过的防守球员（项目里已有 defenders_within_3m_of_lane 和 nearest_defender_to_lane 两个特征）。这两件事都需要先想清楚预注册的判据，因为位置面本身的量级很小，容易被噪声带偏。对方那一头的事件数不够（三个划分分别只有 54、11、11 个窗口有对方射门），这一轮不要再在它上面使劲。"
+}
