@@ -1,0 +1,86 @@
+{
+  "round": "pass-intent-endpoint",
+  "conclusions": [
+    "上一轮担心的事情没有发生：模型的终点没有污染传球成功率的标签。换成模型终点之后，人工空间特征仍然优于纯传球几何，验证场和测试场都更低，七场轮流留出每一场都变好。三种终点加起来 21 场留出全部通过。",
+    "空间特征的系数符号在三种终点下完全一致，方向也正确：离终点最近的防守者越远，成功概率越高（规则 0.68，线性 1.29，MLP 1.35）；传球路线三米内的防守者越多，成功概率越低（-0.11、-0.15、-0.18）；路线上的净空越大，成功概率越高（1.39、1.07、0.99）。所以模型的终点没有让空间特征读反。",
+    "但模型终点也没有带来增益。测试场上，规则终点的人工空间模型 AUROC 0.818、Brier 0.0478；线性终点 0.8238 和 0.0490；MLP 终点 0.8079 和 0.0503。栅格 CNN 上规则终点 AUROC 0.8065、线性 0.8060、MLP 0.7489。线性终点和规则基本打平，MLP 终点明显更差。",
+    "终点因此继续用几何规则。理由从上一轮的「怕污染」换成了「测过了，安全但没有增益」：模型终点不需要被排除，但也不值得引入，因为它多了一个要训练的组件，还带着失败球上无法验证的偏差。",
+    "一条更值得记住的结论：更好的意图估计并不自动带来更好的传球成功率模型。意图接球人在成功球上从 0.79 提到 0.90，传球成功率的排序却没有跟着变。瓶颈在别处——失败球只占 9%，而纯几何特征已经吃掉了大部分可学的信号。",
+    "这一轮仍然没有推荐任何未执行的传球。终点不再是结果来源这只是必要条件，模型条件于一脚记录在案的传球几何与执行这一点没有变。"
+  ],
+  "decision": {
+    "endpoint_estimator": "keep the geometric rule",
+    "model_endpoint_is_safe": true,
+    "model_endpoint_is_better": false,
+    "spatial_gain_survives": "21/21 leave-one-match-out folds across the three endpoints",
+    "recommend_unexecuted_passes": "no"
+  },
+  "rule": {
+    "leak": "The spatial features must keep their sign. A defender near the endpoint must still mean failure.",
+    "spatial": "GO only if the spatial model still has a lower Brier than the geometry model on validation and test, and at least 5 of 7 leave-one-match-out folds improve.",
+    "endpoint": "The model endpoint replaces the rule only if the spatial gain survives and the signs hold.",
+    "verdict": "The two conditions hold in all three arms, so the model endpoint was allowed. It was not adopted because it does not improve the pass-success model: the linear endpoint is a wash and the MLP endpoint is worse. The rule is a necessary condition, not a sufficient one, so keeping the geometric rule is inside it."
+  },
+  "support": {
+    "arms": {
+      "rule": "the teammate the geometric rule picked",
+      "linear": "the teammate the linear aimed-receiver model picked",
+      "mlp": "the teammate the MLP aimed-receiver model picked"
+    },
+    "passes": 2872,
+    "splits": {"train": 1949, "val": 505, "test": 418},
+    "endpoint_agrees_with_the_rule": {
+      "linear": {"train": 0.883, "val": 0.857, "test": 0.833},
+      "mlp": {"train": 0.779, "val": 0.723, "test": 0.761}
+    },
+    "test_metrics": {
+      "rule": {
+        "geometry": {"brier": 0.05079, "auroc": 0.7527},
+        "geometry_spatial": {"brier": 0.04781, "auroc": 0.818},
+        "position_raster": {"brier": 0.04857, "auroc": 0.8065}
+      },
+      "linear": {
+        "geometry": {"brier": 0.05071, "auroc": 0.7578},
+        "geometry_spatial": {"brier": 0.04903, "auroc": 0.8238},
+        "position_raster": {"brier": 0.04728, "auroc": 0.806}
+      },
+      "mlp": {
+        "geometry": {"brier": 0.052, "auroc": 0.7091},
+        "geometry_spatial": {"brier": 0.0503, "auroc": 0.8079},
+        "position_raster": {"brier": 0.05118, "auroc": 0.7489}
+      }
+    },
+    "val_metrics": {
+      "rule": {
+        "geometry": {"brier": 0.08418, "auroc": 0.7531},
+        "geometry_spatial": {"brier": 0.0777, "auroc": 0.8514},
+        "position_raster": {"brier": 0.07924, "auroc": 0.8244}
+      },
+      "linear": {
+        "geometry": {"brier": 0.08498, "auroc": 0.749},
+        "geometry_spatial": {"brier": 0.08137, "auroc": 0.8321},
+        "position_raster": {"brier": 0.08004, "auroc": 0.8171}
+      },
+      "mlp": {
+        "geometry": {"brier": 0.08396, "auroc": 0.7669},
+        "geometry_spatial": {"brier": 0.07636, "auroc": 0.8628},
+        "position_raster": {"brier": 0.08015, "auroc": 0.7963}
+      }
+    },
+    "spatial_wins_over_geometry_in_leave_one_match_out": {
+      "rule": "7/7",
+      "linear": "7/7",
+      "mlp": "7/7"
+    },
+    "spatial_coefficients": {
+      "nearest_defender_to_ball": {"rule": 0.3422, "linear": 0.4664, "mlp": 0.4844},
+      "nearest_defender_to_end": {"rule": 0.6834, "linear": 1.2881, "mlp": 1.3491},
+      "nearest_teammate_to_end": {"rule": -0.1554, "linear": -0.1655, "mlp": -0.1601},
+      "defenders_within_3m_of_lane": {"rule": -0.1113, "linear": -0.151, "mlp": -0.1839},
+      "nearest_defender_to_lane": {"rule": 1.3949, "linear": 1.0709, "mlp": 0.9938}
+    },
+    "consistency_check": "The rule arm reproduces the intent arm of results/pass-intent/conclusion.json exactly: validation Brier 0.0777 and AUROC 0.8514, test Brier 0.04781 and AUROC 0.818.",
+    "local_artifacts": "outputs/pass_intent_endpoint/"
+  },
+  "next": "终点这件事到这里可以收住了：几何规则是终点，模型终点安全但没有增益，传球成功率模型的瓶颈不在终点上。下一步不要再改终点，要改的是瓶颈本身。第一条候选是把失败球从 9% 变成一类需要单独建模的对象，而不是混在 91% 的成功球里用同一个常数基线。第二条候选是把价值模型接进来，用「球在谁脚下 + 下一触球是不是本方」那一头去预测接球之后的收益，但价值模型本身在 results/state-value/conclusion.json 里也停在了简单基线上，所以先做哪一条要看哪一条的数据更够。"
+}

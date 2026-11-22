@@ -144,6 +144,12 @@ def orient_samples(samples: list[dict], transform: str, pitch_x: float, pitch_y:
             annotated_xy = _orient((intent["annotated_x"], intent["annotated_y"]), pitch_x, pitch_y, attack_positive)
         else:
             annotated_xy = None
+        candidates = []
+        for candidate in intent.get("candidates") or []:
+            point = candidate.get("xy")
+            if point is not None:
+                candidate = {**candidate, "xy": _orient(point, pitch_x, pitch_y, attack_positive)}
+            candidates.append(candidate)
         attack = []
         defense = []
         for _person, (x, y, team) in players.items():
@@ -176,7 +182,7 @@ def orient_samples(samples: list[dict], transform: str, pitch_x: float, pitch_y:
                 "intent_perp_m": intent.get("perp_m"),
                 "intent_along_m": intent.get("along_m"),
                 "intent_status": intent.get("status"),
-                "intent_candidates": intent.get("candidates") or [],
+                "intent_candidates": candidates,
                 "annotated_xy": annotated_xy,
             }
         )

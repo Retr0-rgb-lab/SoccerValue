@@ -14,6 +14,7 @@ SoccerValue estimates the recorded outcome of a ground pass from tracking. Each 
 - Pass-success round: `python -m soccervalue.run_pass_success`
 - Intent-endpoint round: `python -m soccervalue.run_pass_intent`
 - Intent-model round: `python -m soccervalue.run_pass_intent_model`
+- Intent-endpoint round: `python -m soccervalue.run_pass_intent_endpoint`
 
 ## Index
 

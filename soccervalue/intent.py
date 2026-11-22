@@ -279,6 +279,7 @@ class IntentTracker:
             rows.append(
                 {
                     "player": player,
+                    "xy": (px, py),
                     "features": [
                         along / diagonal,
                         perp / diagonal,

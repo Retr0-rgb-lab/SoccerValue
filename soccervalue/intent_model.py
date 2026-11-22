@@ -86,6 +86,7 @@ def build_dataset(rows: list[dict], require_label: bool = True):
                 "success": row["success"],
                 "features": features,
                 "players": players,
+                "xy": [item.get("xy") for item in (row.get("intent_candidates") or [])],
                 "label": index,
                 "rule_pick": row.get("intent_player"),
                 "recipient": row.get("recipient"),
