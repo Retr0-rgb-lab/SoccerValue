@@ -84,6 +84,64 @@ def predicted_toucher(segment: dict, model, mean, std) -> dict | None:
     return {"id": roster[index]["id"], "team": roster[index]["team"]}
 
 
+def collect_pass_states(
+    passes: list[dict],
+    segments_by_match: dict,
+    touch_model,
+    touch_mean,
+    touch_std,
+    drag: float,
+    pitch: tuple[float, float],
+    transform: str,
+) -> list[dict]:
+    """Link every pass to its flight and build the three states."""
+    states = []
+    for pass_row in passes:
+        segment = link_segment(pass_row, segments_by_match.get(pass_row["match_id"], []), transform, pitch)
+        if segment is None:
+            continue
+        built = build_states(pass_row, segment, touch_model, touch_mean, touch_std, drag, pitch, transform)
+        if built is None:
+            continue
+        states.append(built)
+    return states
+
+
+def add_values(states: list[dict], model) -> None:
+    """Score every state with a value model and record the change."""
+    for state in states:
+        pitch = state["pitch"]
+        before = _heads(model, [(state["ball_before"], 1, pitch)])[0]
+        after_real = _heads(model, [(state["ball_after_real"], state["possession_after_real"], pitch)])[0]
+        after_sim = _heads(model, [(state["ball_after_sim"], state["possession_after_sim"], pitch)])[0]
+        same_team = _heads(model, [(state["ball_after_real"], 1, pitch)])[0]
+        state["p_for_before"], state["p_against_before"] = float(before[0]), float(before[1])
+        state["p_for_after_real"], state["p_against_after_real"] = float(after_real[0]), float(after_real[1])
+        state["p_for_after_sim"], state["p_against_after_sim"] = float(after_sim[0]), float(after_sim[1])
+        state["value_before"] = float(before[0] - before[1])
+        state["value_after_real"] = float(after_real[0] - after_real[1])
+        state["value_after_sim"] = float(after_sim[0] - after_sim[1])
+        state["value_change_real"] = state["value_after_real"] - state["value_before"]
+        state["value_change_sim"] = state["value_after_sim"] - state["value_before"]
+        # the same ball position with the other holder, to split the two effects
+        state["value_after_real_same_team"] = float(same_team[0] - same_team[1])
+        state["possession_effect_on_value"] = state["value_after_real"] - state["value_after_real_same_team"]
+
+
+def _heads(model, triples: list[tuple]) -> np.ndarray:
+    """The two heads for each state: the team's shot chance and the other's."""
+    rows = [value_row(ball, possession, pitch) for ball, possession, pitch in triples]
+    if not rows:
+        return np.zeros((0, 2), dtype=np.float64)
+    return model.predict(rows)
+
+
+def value_of(model, triples: list[tuple]) -> np.ndarray:
+    """The value of each state: the team's shot chance minus the other's."""
+    heads = _heads(model, triples)
+    return heads[:, 0] - heads[:, 1]
+
+
 def value_row(ball: tuple[float, float], possession: int, pitch: tuple[float, float]) -> dict:
     """A row the value model can score. The labels are placeholders."""
     return {

@@ -112,6 +112,105 @@ class SimpleStateValue:
         )
 
 
+class SymmetricStateValue:
+    """One model for both teams, fitted on the mirrored rows.
+
+    A state is described in the attacking frame of the team being evaluated.
+    The same model then scores the other team by mirroring the frame, so the
+    two heads are forced to be the same function of the same features.
+
+    The separate heads had learned different weights for possession: the head
+    that predicts the evaluated team's shots weighed possession at +0.492 and
+    the head that predicts the opponent's shots at only -0.119. That is how a
+    state where the opponent has the ball kept the same value as a state where
+    the team has it.
+
+    `mode` decides what is shared. "slopes" shares every slope and keeps a
+    separate level for each team, so the two teams can have different shot
+    rates. "all" shares the slopes and the level as well.
+    """
+
+    FEATURE_NAMES = ("ball_x_over_pitch_x", "ball_y_over_pitch_y", "possession_own")
+
+    def __init__(self, mode: str = "slopes") -> None:
+        if mode not in {"slopes", "all"}:
+            raise ValueError(f"unknown mode {mode}")
+        self.mode = mode
+        self.scaler = StandardScaler()
+        self.model = LogisticRegression(max_iter=1000)
+        self.constant = None
+
+    def _own(self, row: dict) -> tuple[list[float], float]:
+        pitch_x, pitch_y = row["pitch"]
+        bx, by = row["ball"]
+        return [bx / pitch_x, by / pitch_y, float(row["possession_by_t"])], float(row["y_for"])
+
+    def _other(self, row: dict) -> tuple[list[float], float]:
+        pitch_x, pitch_y = row["pitch"]
+        bx, by = row["ball"]
+        return [
+            (pitch_x - bx) / pitch_x,
+            (pitch_y - by) / pitch_y,
+            float(1 - row["possession_by_t"]),
+        ], float(row["y_against"])
+
+    def _design(self, own: list[float], team: int) -> list[float]:
+        row = list(own)
+        if self.mode == "slopes":
+            row.append(float(team))
+        return row
+
+    def fit(self, rows: list[dict]) -> None:
+        data = []
+        labels = []
+        flags = []
+        for row in rows:
+            own, label_own = self._own(row)
+            other, label_other = self._other(row)
+            data.append(own)
+            labels.append(label_own)
+            flags.append(0.0)
+            data.append(other)
+            labels.append(label_other)
+            flags.append(1.0)
+        features = np.asarray(data, dtype=np.float64)
+        target = np.asarray(labels, dtype=np.int64)
+        # only the shared features are standardised, so the team flag stays a
+        # plain level difference that can be read straight off the coefficient
+        self.scaler.fit(features)
+        scaled = self.scaler.transform(features)
+        if self.mode == "slopes":
+            design = np.column_stack([scaled, np.asarray(flags, dtype=np.float64)])
+        else:
+            design = scaled
+        self.constant = _fit_or_constant(self.model, design, target)
+
+    def _score(self, features: list[float], team: int) -> float:
+        scaled = self.scaler.transform(np.asarray([features], dtype=np.float64))
+        if self.mode == "slopes":
+            design = np.column_stack([scaled, np.asarray([float(team)])])
+        else:
+            design = scaled
+        return float(_predict_head(self.model, self.constant, design)[0])
+
+    def predict(self, rows: list[dict]) -> np.ndarray:
+        out = []
+        for row in rows:
+            own, _ = self._own(row)
+            other, _ = self._other(row)
+            out.append([self._score(own, 0), self._score(other, 1)])
+        return np.asarray(out, dtype=np.float64)
+
+    def coefficients(self) -> dict:
+        names = list(self.FEATURE_NAMES)
+        if self.mode == "slopes":
+            names.append("team_level")
+        return {
+            name: float(value)
+            for name, value in zip(names, self.model.coef_[0])
+        }
+
+
 class StateValueNet(nn.Module):
     """One pair of probabilities for the whole state, not a pass-destination map."""
 

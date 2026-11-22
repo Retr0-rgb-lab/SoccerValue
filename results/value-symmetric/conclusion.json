@@ -1,0 +1,115 @@
+{
+  "round": "value-symmetric",
+  "conclusions": [
+    "上一轮对价值模型的诊断是错的，需要更正：那不是模型没学会「球在对方脚下对方更可能射门」，而是数据里就测不出这件事。被评价球队自己那一头极稳，三个划分的比值都是 2.3 倍左右（本方有球时的射门率除以无球时：训练 0.0465 对 0.0203，验证 0.0370 对 0.0165，测试 0.0359 对 0.0156）。对方那一头三个划分的方向互相矛盾：同一个比值在训练是 0.79 倍、验证 0.43 倍、测试 1.84 倍。少数格里只有十几次射门，方向随划分翻转。模型给出 −0.119 的弱系数是诚实的。",
+    "所以不对称是数据限制，不是模型缺陷。用足球先验强行对称，并没有让传球之后的绝对价值分出成功与失败。三个候选在测试场的绝对价值差距：分头基线 +0.0001（3/7 场为正），共享斜率 −0.0037（2/7），共享一切 +0.0121（4/7）。预先规定的分离判据是测试场为正且至少 6 场为正，这一轮没有通过。",
+    "共享一切的模型在验证场的差距是负的（−0.0043），测试场是正的（+0.0121），逐场七场里三场为负。绝对价值这条路的符号在划分之间不稳定。",
+    "对称模型还伤到了价值模型自己：共享一切的候选里，代表对方射门的那个头在测试场的 AUROC 从 0.8317 掉到 0.7891，掉了 0.043，超出允许的 0.02。共享斜率的候选没有这个退化（AUROC −0.0104），但它的绝对价值差距更差。",
+    "按验证场选出的候选是共享一切，它在测试场上恰好回归了。这正是事先写死判据要抓的情形。",
+    "链条在三个候选下都成立：模拟后继的价值和真实后继差 0.0078 到 0.0114，传球前的局面和真实后继差 0.0197 到 0.0269。世界模型给出的后继局面仍然是可信的。",
+    "价值变化 ΔV 在三个候选下都是七场全部为正。共享一切把差距拉大（测试 +0.0292 对基线 +0.0220，验证 +0.0302 对 +0.0265），共享斜率反而拉小（+0.0159）。没有一个对称变体是干净的胜出。",
+    "结论保持不变，但理由换了：传球仍然用价值变化 ΔV 打分，绝对价值这条路继续关着，价值模型保留两个分开的头。这次不是出于谨慎，是测过了——绝对价值分不开，而且强行对称的代价是对方那个头的排序。"
+  ],
+  "decision": {
+    "value_model": "keep the separate heads",
+    "absolute_value_separation": "stop",
+    "score_passes_with_the_value_change": "go",
+    "adopt_a_symmetric_value_model": "no",
+    "recommend_unexecuted_passes": "no"
+  },
+  "rule": {
+    "no_regression": "A candidate may not be worse than the separate heads on the state-value protocol: each head keeps a test Brier no more than 0.001 worse and no AUROC falls by more than 0.02.",
+    "selection": "Among the candidates that pass no_regression on the validation match, take the one with the larger absolute-value gap there. The test match is read for the chosen one.",
+    "separation": "The chosen model must have the value after a successful pass higher than after a failed one on the test match and in at least 6 of the 7 matches.",
+    "chain": "The value of the simulated successor state must stay closer to the recorded successor value than the pre-pass value is.",
+    "verdict": "The separation rule failed: the chosen candidate has a positive test gap of 0.0121 but only 4 of 7 matches positive and a negative validation gap. The chosen candidate also breaks no_regression on the test match, where the against head loses 0.043 of AUROC. The chain rule held for every candidate."
+  },
+  "support": {
+    "diagnosis": {
+      "note": "Conditional shot rates by who holds the ball, measured on the value-model states before any model is fitted.",
+      "train": {
+        "n": 4192,
+        "share_without_possession": 0.153,
+        "for_shoots": {"possession_1": 0.0465, "possession_0": 0.0203, "ratio": 2.29},
+        "against_shoots": {"possession_1": 0.0124, "possession_0": 0.0156, "ratio": 0.79}
+      },
+      "val": {
+        "n": 877,
+        "share_without_possession": 0.138,
+        "for_shoots": {"possession_1": 0.037, "possession_0": 0.0165, "ratio": 2.24},
+        "against_shoots": {"possession_1": 0.0106, "possession_0": 0.0248, "ratio": 0.43}
+      },
+      "test": {
+        "n": 825,
+        "share_without_possession": 0.155,
+        "for_shoots": {"possession_1": 0.0359, "possession_0": 0.0156, "ratio": 2.3},
+        "against_shoots": {"possession_1": 0.0143, "possession_0": 0.0078, "ratio": 1.84}
+      },
+      "reading": "The evaluated team's own relation is stable in all three splits. The opponent's relation changes sign between splits, so it is not identifiable from seven matches."
+    },
+    "candidates": {
+      "separate": {
+        "description": "the two heads fitted apart, the baseline",
+        "coefficients": {
+          "for": {"ball_x": 0.4405, "ball_y": -0.1878, "possession_by_t": 0.4925},
+          "against": {"ball_x": -0.2091, "ball_y": 0.1831, "possession_by_t": -0.1192}
+        },
+        "state_value_test": {
+          "for": {"brier": 0.02824, "auroc": 0.8734},
+          "against": {"brier": 0.01298, "auroc": 0.8317}
+        },
+        "absolute_gap_test": 0.00009,
+        "absolute_gap_val": -0.01853,
+        "absolute_matches_positive": "3/7",
+        "change_gap_test": 0.02202,
+        "change_matches_positive": "7/7"
+      },
+      "symmetric_slopes": {
+        "description": "one model for both teams, the slopes shared and a level per team",
+        "coefficients": {"ball_x": 1.1748, "ball_y": -0.1857, "possession_own": 0.4677, "team_level": -1.1559},
+        "state_value_test": {
+          "for": {"brier": 0.02852, "auroc": 0.8758},
+          "against": {"brier": 0.01295, "auroc": 0.8213}
+        },
+        "absolute_gap_test": -0.00372,
+        "absolute_gap_val": -0.02182,
+        "absolute_matches_positive": "2/7",
+        "change_gap_test": 0.01593,
+        "change_matches_positive": "7/7"
+      },
+      "symmetric_all": {
+        "description": "one model for both teams, slopes and level shared",
+        "coefficients": {"ball_x": 1.0924, "ball_y": -0.2082, "possession_own": 0.8154},
+        "state_value_test": {
+          "for": {"brier": 0.02877, "auroc": 0.8724},
+          "against": {"brier": 0.01328, "auroc": 0.7891}
+        },
+        "absolute_gap_test": 0.01207,
+        "absolute_gap_val": -0.0043,
+        "absolute_matches_positive": "4/7",
+        "change_gap_test": 0.02918,
+        "change_matches_positive": "7/7",
+        "absolute_per_match": {
+          "J03WMX": -0.01259,
+          "J03WN1": 0.02083,
+          "J03WOH": -0.0151,
+          "J03WOY": 0.02696,
+          "J03WPY": 0.00806,
+          "J03WQQ": -0.0043,
+          "J03WR9": 0.01207
+        }
+      }
+    },
+    "no_regression_on_test": {
+      "symmetric_slopes": "pass",
+      "symmetric_all": "fail, the against head loses 0.0426 of AUROC"
+    },
+    "chain": {
+      "separate": {"test": {"mae_simulated_vs_recorded": 0.00802, "mae_prepass_vs_recorded": 0.01971}},
+      "symmetric_slopes": {"test": {"mae_simulated_vs_recorded": 0.00779, "mae_prepass_vs_recorded": 0.01979}},
+      "symmetric_all": {"test": {"mae_simulated_vs_recorded": 0.01137, "mae_prepass_vs_recorded": 0.02513}}
+    },
+    "local_artifacts": "outputs/value_symmetric/"
+  },
+  "next": "对方那个头的标签太稀（基准 1.2%，少数格里只有十几次射门），所以控球对它的影响测不出来。下一轮应该把这一头拆成两个因子：P(对方十秒内拿到球) 乘以 P(对方拿到球后射门)。第一个因子是密的，球权变化在追踪里很多，第二个因子可以在「对方确实控球」的状态子集上估。这比强行对称更诚实，因为它不再假装数据支持一个测不出来的关系。另外上一轮记下的那 38% 失败球（飞行段结束后下一个触球者仍是本方队友）还要单独查一次，它会同时影响两个因子。"
+}

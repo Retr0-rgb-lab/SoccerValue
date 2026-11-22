@@ -31,7 +31,7 @@ from soccervalue.align import choose_transform
 from soccervalue.ball_flight import fit_drag
 from soccervalue.events import load_open_flat_passes, load_timeline, pitch_size
 from soccervalue.matches import MATCH_COMPETITION, assert_split_disjoint, split_of
-from soccervalue.pass_value import build_states, link_segment, value_row
+from soccervalue.pass_value import add_values, collect_pass_states, value_row
 from soccervalue.run_pass_success import ensure_file
 from soccervalue.state_frames import attach_state_frame, orient_state
 from soccervalue.state_value import build_state_samples
@@ -187,36 +187,12 @@ def main() -> int:
         passes.extend(found)
     print(f"passes {len(passes)}", flush=True)
 
-    states = []
-    for pass_row in passes:
-        segment = link_segment(pass_row, segments_by_match.get(pass_row["match_id"], []), transform, pitch)
-        if segment is None:
-            continue
-        built = build_states(
-            pass_row, segment, touch_model, touch_mean, touch_std, drag, pitch, transform
-        )
-        if built is None:
-            continue
-        states.append(built)
+    states = collect_pass_states(
+        passes, segments_by_match, touch_model, touch_mean, touch_std, drag, pitch, transform
+    )
     print(f"passes with a linked successor state: {len(states)}", flush=True)
 
-    for state in states:
-        pitch_xy = state["pitch"]
-        before = value_of(value_model, [(state["ball_before"], 1, pitch_xy)])[0]
-        after_real = value_of(value_model, [(state["ball_after_real"], state["possession_after_real"], pitch_xy)])[0]
-        after_sim = value_of(value_model, [(state["ball_after_sim"], state["possession_after_sim"], pitch_xy)])[0]
-        same_team = value_of(value_model, [(state["ball_after_real"], 1, pitch_xy)])[0]
-        state["p_for_before"], state["p_against_before"] = float(before[0]), float(before[1])
-        state["p_for_after_real"], state["p_against_after_real"] = float(after_real[0]), float(after_real[1])
-        state["p_for_after_sim"], state["p_against_after_sim"] = float(after_sim[0]), float(after_sim[1])
-        state["value_before"] = float(before[0] - before[1])
-        state["value_after_real"] = float(after_real[0] - after_real[1])
-        state["value_after_sim"] = float(after_sim[0] - after_sim[1])
-        state["value_change_real"] = state["value_after_real"] - state["value_before"]
-        state["value_change_sim"] = state["value_after_sim"] - state["value_before"]
-        # the same ball position with the other holder, to split the two effects
-        state["value_after_real_same_team"] = float(same_team[0] - same_team[1])
-        state["possession_effect_on_value"] = state["value_after_real"] - state["value_after_real_same_team"]
+    add_values(states, value_model)
 
     by_split = {split: [state for state in states if split_of(state["match_id"]) == split] for split in segments}
     results = {
