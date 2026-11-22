@@ -1,0 +1,75 @@
+{
+  "round": "candidate-pass",
+  "conclusions": [
+    "位置面不能给候选传球排序。留出比赛上，把真实接球人排在第一的比例：只用成功率 50.7%，只用位置面 19.6%，两者相乘 27.8%。预先规定的判据是至少不低于几何射线规则的 76.0%，这一轮差得很远，没有通过。",
+    "原因量出来了，不是「分辨率不够」这一句。第一个是分辨率：位置面只有 8 个区，平均每脚球只有 4.2 个候选，真实接球人落在最优区内的比例只有 34.9%，所以面根本没有能力在几个队友之间挑人。第二个更关键：在同一组候选里，价值和可传性的相关系数是 −0.40，也就是越值钱的方向恰恰越难传到。面说「往前传」，成功率模型说「传近的」，两者指向相反。",
+    "把两个乘起来（EPV 那种分解）比只用成功率更差，27.8% 对 50.7%。原因是位置面在区之间的取值差（自家三区 −0.002 到禁区 +0.032）远大于成功率在候选之间的差，乘完之后排序基本被价值项主导，于是继承了两边更差的那一半。",
+    "两个模型的首选重合率只有 13.4%，说明它们量的确实是两件不同的事：面量的是「这个区值多少」，成功率模型量的是「这一脚成不成」。面没有给成功率模型带来新信息，反过来也没有被成功率模型覆盖。",
+    "有一点要说清楚：面并不是「只挑最靠前」那种粗糙规则。它的首选等于最靠前候选的比例只有 24.0%，成功率模型的首选等于离球最近候选的比例也只有 37.3%。两个模型都在按各自的信息排序，只是排出来的都不是传球者真正选的那个。",
+    "这轮的结果把分工划清了：谁 → 几何射线规则（意图，76.0%）；能不能传到 → 成功率模型（50.7%）；传到那里值多少 → 位置面。三者不能相乘成一个候选排序。传球者选的不是区价值最高的那个，也不是最容易传到的那个。",
+    "所以位置面的用途不变，仍然是给一个区估值：上一轮它在留出比赛上把成功与失败分开 7/7，中央带在四个纵深带都比边路值钱。这些仍然成立，只是不该拿它去排候选。",
+    "这一轮仍然没有推荐任何未执行的传球。候选打分的链缺的是「接球人自身处境」这一层，而位置面给的是「这个区的平均处境」。"
+  ],
+  "decision": {
+    "surface_as_a_candidate_ranker": "no",
+    "surface_as_a_zone_value": "yes",
+    "who_to_pass_to": "the geometric ray rule",
+    "whether_it_can_be_completed": "the pass success model",
+    "what_it_is_worth": "the position surface",
+    "multiply_value_by_probability": "no, it is worse than the probability alone",
+    "recommend_unexecuted_passes": "no"
+  },
+  "rule": {
+    "choice": "On the held-out match, the combined score must put the player who received the ball first at least as often as the geometric ray rule does.",
+    "zone": "The surface ranks zones, not players, so the zone-level hit rate and the number of candidates sharing the top zone are reported.",
+    "agreement": "The overlap between the surface's first choice and the success model's first choice is reported.",
+    "verdict": "The choice rule failed: 27.8% against a baseline of 76.0%. The zone rule explains the failure: the receiver sits in the best valued zone in 34.9% of the passes only. The agreement rule gives the cause: the two first choices coincide in 13.4% of the passes and the value and the probability are negatively correlated at -0.40 across candidates."
+  },
+  "support": {
+    "candidate_set": "The teammates that stand ahead of the ball inside the aim cone, taken from the candidate table the intent module already builds. The mean set is 4.2 candidates.",
+    "baseline_ray_agreement": 0.76,
+    "held_out_match": {
+      "n_with_a_receiver": 367,
+      "first_choice_rate": {
+        "probability_only": 0.507,
+        "surface_only": 0.196,
+        "combined": 0.278,
+        "receiver_in_the_best_valued_zone": 0.349
+      },
+      "mean_candidates": 4.2,
+      "mean_candidates_sharing_the_top_under_the_combined_score": 1.0,
+      "same_first_choice_rate": 0.134,
+      "mean_correlation_between_value_and_probability": -0.403,
+      "surface_first_choice_is_the_most_forward_candidate": 0.24,
+      "probability_first_choice_is_the_closest_candidate": 0.373
+    },
+    "validation_match": {
+      "n_with_a_receiver": 415,
+      "first_choice_rate": {
+        "probability_only": 0.453,
+        "surface_only": 0.21,
+        "combined": 0.227,
+        "receiver_in_the_best_valued_zone": 0.347
+      },
+      "same_first_choice_rate": 0.145,
+      "mean_correlation_between_value_and_probability": -0.374
+    },
+    "training_split": {
+      "n_with_a_receiver": 1621,
+      "first_choice_rate": {
+        "probability_only": 0.471,
+        "surface_only": 0.191,
+        "combined": 0.24,
+        "receiver_in_the_best_valued_zone": 0.334
+      },
+      "same_first_choice_rate": 0.149,
+      "mean_correlation_between_value_and_probability": -0.412
+    },
+    "notes": [
+      "The success model was fitted on the recorded passes, so scoring the alternatives it never saw is an extrapolation. The surface was fitted on the state samples, so its zone values are in sample.",
+      "The truth is the annotated recipient on successful passes. On a failed pass the annotated recipient is the opponent who intercepted, so there is no teammate to find."
+    ],
+    "local_artifacts": "outputs/candidate_pass/"
+  },
+  "next": "候选打分缺的是「接球人自身的处境」：他朝哪边、身边有没有人、他在不在跑向空间。位置面给的是这个区的平均处境，所以它只能给区估值。要挑人，需要的是球员级或连续位置级的价值，而这正是用户提的第二条指标（越过的防守球员、传球路线上的净空）该上场的地方：把价值从「区的平均」改成「这个接球人所在位置相对对方防线的处境」。下一步应该先量一件事：在留出比赛上，接球人在被瞄准的那一刻与「射线上最近的队友」相比，他身上多了什么、少了吗；如果这个差是稳定且可测的，再把它做成一个球员级特征，接到位置面的价值上去。这一轮不要在区数量上使劲，八个区已经是这个数据量的上限。"
+}
