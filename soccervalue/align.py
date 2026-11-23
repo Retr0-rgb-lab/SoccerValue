@@ -152,12 +152,18 @@ def orient_samples(samples: list[dict], transform: str, pitch_x: float, pitch_y:
             candidates.append(candidate)
         attack = []
         defense = []
-        for _person, (x, y, team) in players.items():
+        attack_ids = []
+        defense_ids = []
+        opponent_team_id = None
+        for person, (x, y, team) in players.items():
             point = _orient(convert(transform, x, y, pitch_x, pitch_y), pitch_x, pitch_y, attack_positive)
             if team == sample["team_id"]:
                 attack.append(point)
+                attack_ids.append(person)
             else:
                 defense.append(point)
+                defense_ids.append(person)
+                opponent_team_id = team
         rows.append(
             {
                 "match_id": sample["match_id"],
@@ -169,6 +175,9 @@ def orient_samples(samples: list[dict], transform: str, pitch_x: float, pitch_y:
                 "ball": ball_xy,
                 "attack": attack,
                 "defense": defense,
+                "attack_ids": attack_ids,
+                "defense_ids": defense_ids,
+                "opponent_team_id": opponent_team_id,
                 "pitch": (pitch_x, pitch_y),
                 "end_source": end_source,
                 "recorded_end_source": sample.get("end_source"),

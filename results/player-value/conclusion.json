@@ -1,0 +1,99 @@
+{
+  "round": "player-value",
+  "conclusions": [
+    "接球人和竞争者的球员级差别，量出来了，而且和直觉相反：区分接球人的是「可得与开阔」，不是「价值与推进」。在留出比赛上，接球人在射线上更靠得更近的比例 91.3%，离球更近 75.2%，传球路线净空更大 70.7%，身边防守者更远 65.0%，自己在移动 60.6%，不越位 63.0%。这六个特征在三个划分上方向一致，按预先规定的判据全部合格。",
+    "反过来，所有带「价值」味道的特征都是反向的：接球人更远离对方球门的比例只有 36.3%，射门角度更小 38.5%，更不居中 46.0%，沿射线更不靠前 43.9%，站在最后一条防线之后 37.0%，身前越过的防线更少 18.3%，传球本身越过的防线层数只有 9.6%。也就是说传球者瞄的不是价值最高的队友，也不是已经撕开防线的队友，而是眼下最稳妥、最跑得到、最没人管的那个。",
+    "这解释了上一轮那个否定结果为什么会出现：位置面奖励的是靠前、居中的区，而传球者的实际标准是可得与开阔，所以面排候选的方向恰好是反的。两个结果合起来是同一件事的两面。",
+    "球员级排序器训练出来以后，在留出比赛上把真实接球人排在第一的比例是 87.2%，射线规则是 78.2%，高 9.0 个百分点。逐场留一：七场全部提高，差 +4.3 到 +9.0，没有一场输。预先规定的判据是「留出比赛至少高一个百分点，且不超过一场输」，这一轮通过。",
+    "但是防线特征没有挣到这个位置。把五个防线相关特征（离最后一条防线的距离、身前的防线层数、传球越过的防线层数、到下一条防线的空当、离越位线的距离）去掉之后，排序器仍然七场全胜，贡献是每场平均 +0.47 个百分点，而且有两场是负的（−0.8 和 −0.5）。这些特征按判据也不合格：接球人身前的防线层数比竞争者多的比例只有 18.3%，传球越过的防线层数只有 9.6%。",
+    "所以用户提的第二条指标成立，第一条不成立：越过的防守球员、传球路线上的净空确实是接球人的特征（净空 70.7%、防守者距离 65.0%），但「越过几层防线」不是。传球者不挑撕开防线的人。",
+    "还要说清这个排序器是什么、不是什么：它学的是传球者在挑谁，不是哪一脚最值钱。它只用出脚那一刻的几何，没有读结果，所以它比射线规则更会找人；但它也因此继承了传球者的偏好，不会替我们判断该不该传这一脚。价值那一半仍然由位置面按区给出，而且位置面给的也只是区的平均处境。",
+    "这一轮仍然没有推荐任何未执行的传球。排序器是在成功球上训练的，那是一个被结果筛过的群体；失败球的意图没有标签，模型在那一类的行为没有验证过。"
+  ],
+  "decision": {
+    "player_level_ranker": "go, it replaces the geometric ray rule as the intended-receiver estimator",
+    "defensive_line_features": "no, they add about half a point on average and are negative on two of the seven matches",
+    "openness_and_availability_features": "yes, these are what separate the receiver",
+    "value_features_for_choosing": "no, they point the wrong way",
+    "recommend_unexecuted_passes": "no"
+  },
+  "rule": {
+    "feature": "A feature qualifies when the receiver holds the better value in at least 55% of the comparisons on the held-out match and the direction agrees in at least 6 of the 7 matches.",
+    "model": "GO only if the trained ranker puts the receiver first at least one point more often than the geometric ray rule does on the held-out match, and it does not lose on more than one of the 7 matches.",
+    "report": "The comparisons are also reported on the passes where the ray rule gets it wrong.",
+    "verdict": "The model rule passed: 87.2% against 78.2% on the held-out match and seven of seven matches improved with no losses. The feature rule qualified six features, the openness and availability ones, and none of the five defensive line features; their contribution to the ranker is about half a point on average and negative on two matches."
+  },
+  "support": {
+    "measurement_on_all_successful_passes": {
+      "perp_m": {"train": 0.897, "val": 0.888, "test": 0.913, "qualifies": true},
+      "distance_to_ball_m": {"train": 0.725, "val": 0.707, "test": 0.752, "qualifies": true},
+      "lane_clearance_m": {"train": 0.699, "val": 0.696, "test": 0.707, "qualifies": true},
+      "nearest_defender_to_candidate_m": {"train": 0.642, "val": 0.647, "test": 0.65, "qualifies": true},
+      "offside_line_distance_m": {"train": 0.604, "val": 0.59, "test": 0.63, "qualifies": true},
+      "candidate_speed_mps": {"train": 0.624, "val": 0.641, "test": 0.606, "qualifies": true},
+      "gap_to_next_line_m": {"train": 0.522, "val": 0.52, "test": 0.529, "qualifies": false},
+      "perp_rank_is_not_used": true,
+      "velocity_along_ray_mps": {"train": 0.471, "val": 0.476, "test": 0.459, "qualifies": false},
+      "lateral_from_centre_m": {"train": 0.388, "val": 0.398, "test": 0.46, "qualifies": false},
+      "along_m": {"train": 0.467, "val": 0.491, "test": 0.439, "qualifies": false},
+      "defenders_within_3m_of_lane": {"train": 0.465, "val": 0.46, "test": 0.434, "qualifies": false},
+      "goal_angle_rad": {"train": 0.365, "val": 0.37, "test": 0.385, "qualifies": false},
+      "distance_to_last_line_m": {"train": 0.396, "val": 0.41, "test": 0.37, "qualifies": false},
+      "distance_to_opponent_goal_m": {"train": 0.373, "val": 0.388, "test": 0.363, "qualifies": false},
+      "lines_in_front": {"train": 0.202, "val": 0.213, "test": 0.183, "qualifies": false},
+      "lines_crossed_by_the_pass": {"train": 0.121, "val": 0.15, "test": 0.096, "qualifies": false},
+      "note": "A rate below one half means the receiver is systematically worse on that feature. The forward, central and beyond-the-lines features are all below one half."
+    },
+    "measurement_where_the_ray_rule_fails": {
+      "n_passes": {"train": 342, "val": 97, "test": 80},
+      "note": "On the passes where the ray rule picks the wrong teammate, the receiver is closer to the ball 74.2%, faster 68.7%, closer to the ray 69.9%, has the clearer lane 63.2% and the defender farther away 58.6%, and stands in front of fewer lines 21.7%."
+    },
+    "leave_one_match_out": {
+      "J03WMX": {"n": 405, "ray_rule": 0.817, "ranker": 0.884, "delta": 0.067},
+      "J03WN1": {"n": 208, "ray_rule": 0.764, "ranker": 0.808, "delta": 0.043},
+      "J03WOH": {"n": 262, "ray_rule": 0.836, "ranker": 0.885, "delta": 0.05},
+      "J03WOY": {"n": 343, "ray_rule": 0.755, "ranker": 0.816, "delta": 0.061},
+      "J03WPY": {"n": 403, "ray_rule": 0.772, "ranker": 0.824, "delta": 0.052},
+      "J03WQQ": {"n": 415, "ray_rule": 0.766, "ranker": 0.829, "delta": 0.063},
+      "J03WR9": {"n": 367, "ray_rule": 0.782, "ranker": 0.872, "delta": 0.09},
+      "matches_where_the_ranker_loses": []
+    },
+    "leave_one_match_out_without_the_line_features": {
+      "J03WMX": 0.879,
+      "J03WN1": 0.808,
+      "J03WOH": 0.893,
+      "J03WOY": 0.799,
+      "J03WPY": 0.824,
+      "J03WQQ": 0.805,
+      "J03WR9": 0.877,
+      "matches_where_the_ranker_without_lines_loses": [],
+      "line_feature_contribution": {"J03WMX": 0.005, "J03WN1": 0.0, "J03WOH": -0.008, "J03WOY": 0.017, "J03WPY": 0.0, "J03WQQ": 0.024, "J03WR9": -0.005},
+      "reading": "The defensive line features are worth about half a point on average and are negative on two of the seven matches. The ranker wins without them as well."
+    },
+    "linear_weights": {
+      "distance_to_ball_m": -1.9715,
+      "perp_m": -1.5026,
+      "along_m": 1.3036,
+      "nearest_defender_to_candidate_m": 1.1871,
+      "gap_to_next_line_m": 0.5443,
+      "offside_line_distance_m": 0.5287,
+      "distance_to_opponent_goal_m": -0.5164,
+      "distance_to_last_line_m": 0.4716,
+      "lines_in_front": -0.3544,
+      "candidate_speed_mps": 0.2658,
+      "defenders_within_3m_of_lane": -0.2323,
+      "lane_clearance_m": 0.1301,
+      "lateral_from_centre_m": 0.0954,
+      "velocity_along_ray_mps": 0.0833,
+      "goal_angle_rad": -0.077,
+      "lines_crossed_by_the_pass": 0.0056,
+      "note": "On standardised features. The sign of along_m in the fit differs from its marginal direction, because once a candidate is known to be on the ray, being further along it is preferred, while marginally the receiver is the closer one. Distance to the ball and along are mechanically linked: the receiver is the nearer candidate, hence the smaller along."
+    },
+    "notes": [
+      "The ranker is trained on successful passes only. That is a population filtered by the outcome, and the failed passes carry no label for the aim, so its behaviour there is unverified.",
+      "The goalkeeper of each team comes from the match information file, which lists the playing position of every player, so the defensive lines exclude him without guessing."
+    ],
+    "local_artifacts": "outputs/player_value/"
+  },
+  "next": "球员级排序器接替射线规则成为意图估计器，传球成功率模型的终点因此可以换成排序器的选择。下一步要把价值那一半接上去，但要小心：位置面给的是区的平均处境，而传球者的标准是可得与开阔，两者不是一回事，所以不能把排序器的分数当价值用。合理的做法是把位置面的区价值只当作一个先验，让排序器在区内按可得与开阔排序，再用位置价值在区与区之间定权重——也就是让「这个区值多少」和「这个区里谁最可靠」两个量分开乘，这一次乘法才是有意义的。判据要预先写清：区价值应该改变区的排序（把高价值区排在前面），而不应该改变区内选谁。"
+}

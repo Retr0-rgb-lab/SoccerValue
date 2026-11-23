@@ -110,11 +110,14 @@ def fit_intent_model(
     log probability it gives to the annotated recipient, with the normaliser
     taken over that pass's own candidates. The model is trained in full batch,
     so the number of steps is fixed and no held-out match is ever looked at.
+
+    The width of the feature table is taken from the data, so the same fitter
+    serves the intended-receiver task and any other candidate ranking.
     """
     if not dataset:
         raise ValueError("no training passes")
+    width = len(dataset[0]["features"][0])
     torch.manual_seed(seed)
-    width = len(FEATURE_NAMES)
     net = LinearIntent(width) if model == "linear" else MlpIntent(width, hidden)
     optimizer = torch.optim.Adam(net.parameters(), lr=lr, weight_decay=weight_decay)
 
