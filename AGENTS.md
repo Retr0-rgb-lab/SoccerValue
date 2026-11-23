@@ -19,6 +19,7 @@ SoccerValue estimates the recorded outcome of a ground pass from tracking. Each 
 - Value-surface round: `python -m soccervalue.run_value_surface`
 - Candidate-pass round: `python -m soccervalue.run_candidate_pass`
 - Player-value round: `python -m soccervalue.run_player_value`
+- Two-stage round: `python -m soccervalue.run_two_stage`
 - Symmetric-value round: `python -m soccervalue.run_value_symmetric`
 
 ## Index

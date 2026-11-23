@@ -126,6 +126,25 @@ def goal_geometry(candidate: tuple[float, float], pitch: tuple[float, float]) ->
     return (distance, angle)
 
 
+def build_candidates(row: dict, keepers: dict, pitch: tuple[float, float]) -> list[dict]:
+    """The candidate teammates with their features, and the defensive lines."""
+    goalkeeper = keepers.get(row.get("opponent_team_id"))
+    lines, offside = defensive_lines(row["defense"], row["defense_ids"], goalkeeper)
+    out = []
+    for candidate in row.get("intent_candidates") or []:
+        features = candidate_features(candidate, row, lines, offside)
+        if not features:
+            continue
+        out.append(
+            {
+                "player": candidate["player"],
+                "features": features,
+                "xy": candidate.get("xy"),
+            }
+        )
+    return out
+
+
 def candidate_features(candidate: dict, row: dict, lines: list[dict], offside: float | None) -> list[float]:
     """One feature row per candidate, all of it measured at the kick.
 

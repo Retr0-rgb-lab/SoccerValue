@@ -34,8 +34,7 @@ from soccervalue.intent_model import build_dataset, fit_intent_model, predict_pi
 from soccervalue.matches import MATCH_COMPETITION, assert_split_disjoint, split_of
 from soccervalue.player_value import (
     FEATURE_NAMES,
-    candidate_features,
-    defensive_lines,
+    build_candidates,
     read_goalkeepers,
 )
 from soccervalue.tracking import _read_trajectories, attach_tracking
@@ -84,19 +83,6 @@ BETTER_HIGHER = {
 def _write(path: Path, payload) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-
-
-def build_candidates(row: dict, keepers: dict, pitch: tuple[float, float]) -> list[dict]:
-    """The candidate teammates with their features, and the defensive lines."""
-    goalkeeper = keepers.get(row.get("opponent_team_id"))
-    lines, offside = defensive_lines(row["defense"], row["defense_ids"], goalkeeper)
-    out = []
-    for candidate in row.get("intent_candidates") or []:
-        features = candidate_features(candidate, row, lines, offside)
-        if not features:
-            continue
-        out.append({"player": candidate["player"], "features": features})
-    return out
 
 
 def comparisons(candidates: list[dict], truth: str) -> list[tuple[int, float]]:

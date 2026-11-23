@@ -1,0 +1,78 @@
+{
+  "round": "two-stage",
+  "conclusions": [
+    "「区价值定区、排序器定人」的字典序读法失败了，而且失败得很彻底：留出比赛上只有 33.8%，球员级排序器单独是 87.2%，射线规则是 78.2%。原因是可以算出来的上限：这个组合的第一步是区价值定区，而区价值单独选对区的比例只有 34.9%，字典序组合的上限就被它锁死了。",
+    "加权读法也不行。把区价值按验证集选出的权重 35 加到排序器分数上，留出比赛上是 87.2%，和排序器单独打平，但逐场留一里七场中有五场更差（最好 +0.7，最差 −1.5）。预先规定的判据是「留出比赛至少高一个百分点，且不超过一场输」，这一轮没有通过。",
+    "区价值单独用是 31.3%，比射线规则差得多。它的分辨率也说明问题：候选平均落在 2.6 到 2.7 个区里，只有 11% 的传球所有候选在同一个区，区价值在候选之间的平均落差 0.010 米单位上的价值差不算大但也不是零；接球人的区比可选的最优区平均低 0.005 到 0.007。",
+    "这个方向和上一轮测到的球员级差异是同一件事的两面：接球人身前的防线层数比竞争者多的比例只有 18.3%，离对方球门更远的比例只有 36.3%，所以接球人的区通常不是价值最高的那个。区价值没有错，它只是量的是「传球之后那个区值多少」，不是「传球者会挑哪个区」。",
+    "所以分工维持上一轮的结论而且更硬了：区价值不进「选谁」，它进「值多少」那一项，也就是 V(之后) = 目标所在区的价值；「选谁」由球员级排序器单独决定（留出比赛 87.2%，七场留一全部胜过射线规则）。这两件事不能相乘成一个候选排序，上一轮已经测过相乘反而更差。",
+    "这一轮仍然没有推荐任何未执行的传球。"
+  ],
+  "decision": {
+    "two_stage_combination": "no",
+    "lexicographic": "no, 33.8% against 87.2% for the ranker alone",
+    "weighted": "no, level on the held-out match and worse on five of the seven folds",
+    "zone_value_role": "the value of the state after the pass, not the choice of the target",
+    "who_to_pass_to": "the player level ranker, unchanged",
+    "recommend_unexecuted_passes": "no"
+  },
+  "rule": {
+    "combination": "The combination must put the receiver first at least one point more often than the player level ranker alone does on the held-out match, and it must not lose on more than one of the 7 matches.",
+    "lex": "The lexicographic reading is bounded by how often the zone value alone already picks the right zone. That bound is reported before the combination is scored.",
+    "add": "The weighted reading has its weight chosen on the validation match and is then read on the test match.",
+    "verdict": "The bound was reported first: the zone value alone picks the right zone in 34.9% of the held-out passes, and the lexicographic combination scores 33.8%, right at that bound. The weighted combination was given the weight chosen on the validation match, 35, and it ties the ranker on the held-out match while losing on five of the seven folds. The combination rule failed."
+  },
+  "support": {
+    "weight_chosen_on_validation": 35.0,
+    "held_out_match": {
+      "n": 367,
+      "zone_only": 0.313,
+      "ranker_only": 0.872,
+      "lexicographic": 0.338,
+      "weighted": 0.872,
+      "ray_rule": 0.782,
+      "zone_hit_rate": 0.349
+    },
+    "validation_match": {
+      "n": 415,
+      "zone_only": 0.304,
+      "ranker_only": 0.827,
+      "lexicographic": 0.316,
+      "weighted": 0.839,
+      "ray_rule": 0.766,
+      "zone_hit_rate": 0.347
+    },
+    "training_split": {
+      "n": 1621,
+      "zone_only": 0.299,
+      "ranker_only": 0.851,
+      "lexicographic": 0.306,
+      "weighted": 0.844,
+      "ray_rule": 0.789,
+      "zone_hit_rate": 0.334
+    },
+    "leave_one_match_out": {
+      "J03WMX": {"n": 405, "zone_only": 0.294, "ranker_only": 0.884, "lexicographic": 0.304, "weighted": 0.869, "ray_rule": 0.817},
+      "J03WN1": {"n": 208, "zone_only": 0.245, "ranker_only": 0.808, "lexicographic": 0.24, "weighted": 0.793, "ray_rule": 0.764},
+      "J03WOH": {"n": 262, "zone_only": 0.344, "ranker_only": 0.885, "lexicographic": 0.359, "weighted": 0.874, "ray_rule": 0.836},
+      "J03WOY": {"n": 343, "zone_only": 0.303, "ranker_only": 0.816, "lexicographic": 0.306, "weighted": 0.813, "ray_rule": 0.755},
+      "J03WPY": {"n": 403, "zone_only": 0.3, "ranker_only": 0.824, "lexicographic": 0.308, "weighted": 0.826, "ray_rule": 0.772},
+      "J03WQQ": {"n": 415, "zone_only": 0.304, "ranker_only": 0.829, "lexicographic": 0.316, "weighted": 0.834, "ray_rule": 0.766},
+      "J03WR9": {"n": 367, "zone_only": 0.313, "ranker_only": 0.872, "lexicographic": 0.335, "weighted": 0.866, "ray_rule": 0.782},
+      "reading": "The weighted combination loses on five of the seven folds and wins on two."
+    },
+    "zone_structure": {
+      "mean_distinct_zones_per_candidate_set": {"train": 2.56, "val": 2.59, "test": 2.7},
+      "share_with_a_single_zone": {"train": 0.118, "val": 0.108, "test": 0.104},
+      "mean_zone_value_spread_within_a_set": {"train": 0.0094, "val": 0.0087, "test": 0.0104},
+      "mean_gap_from_the_best_zone": {"train": 0.0064, "val": 0.0055, "test": 0.007},
+      "note": "The candidates of a pass do span about two and a half zones, so the zone value is not constant over them. It is simply a poor guide to which one the passer aimed at."
+    },
+    "notes": [
+      "An earlier run of this round was invalid: the candidate table did not carry the positions, so the zone value came out as zero for every candidate and the two combinations collapsed onto the ranker. The numbers above are from the corrected run.",
+      "The zone value alone is scored with the most favourable tie break, the teammate nearest the aim ray, so the baseline is not understated."
+    ],
+    "local_artifacts": "outputs/two_stage/"
+  },
+  "next": "分工已经定死了：球员级排序器管选谁，位置面管传球之后那个区值多少。下一步该做的是把这两者真正接起来，也就是给每个候选算出它那脚传球的完整价值：成功概率乘目标区的价值，加上失败概率乘对方拿到球之后那个区的价值，减去当前的区价值。这不是一个候选排序，是一个传球评分，而且它的两个因子一个来自球员级模型、一个来自位置面，各自的量纲不同，所以要先统一成同一个尺度再比。判据要预先写清：这个传球评分能不能把成功球和失败球分开（这是位置面上一轮已经做到的 7/7），以及它对未执行的候选传球是否稳定——后者只能在留出比赛上用位置面给出、候选由意图估计给出的组合上验。"
+}
